@@ -3007,6 +3007,110 @@
 "lv01Nm": "北上野二丁目",
 "muniCd": "13106"
 },
+"kanagawa-fujisawa-1": {
+"lv01Nm": "南藤沢",
+"muniCd": "14205"
+},
+"kanagawa-hiratsuka-1": {
+"lv01Nm": "宮の前",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-2": {
+"lv01Nm": "紅谷町",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-3": {
+"lv01Nm": "紅谷町",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-4": {
+"lv01Nm": "紅谷町",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-5": {
+"lv01Nm": "宝町",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-6": {
+"lv01Nm": "宝町",
+"muniCd": "14203"
+},
+"kanagawa-hiratsuka-7": {
+"lv01Nm": "宝町",
+"muniCd": "14203"
+},
+"kanagawa-hongodai-1": {
+"lv01Nm": "小菅ケ谷一丁目",
+"muniCd": "14115"
+},
+"kanagawa-hongodai-2": {
+"lv01Nm": "小菅ケ谷一丁目",
+"muniCd": "14115"
+},
+"kanagawa-konandai-1": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-konandai-2": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-konandai-3": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-konandai-4": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-konandai-5": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-konandai-6": {
+"lv01Nm": "港南台三丁目",
+"muniCd": "14111"
+},
+"kanagawa-saginuma-1": {
+"lv01Nm": "鷺沼三丁目",
+"muniCd": "14136"
+},
+"kanagawa-saginuma-2": {
+"lv01Nm": "鷺沼一丁目",
+"muniCd": "14136"
+},
+"kanagawa-tennocho-1": {
+"lv01Nm": "天王町一丁目",
+"muniCd": "14106"
+},
+"kanagawa-tsurumi-1": {
+"lv01Nm": "豊岡町",
+"muniCd": "14101"
+},
+"kanagawa-tsurumi-2": {
+"lv01Nm": "鶴見中央四丁目",
+"muniCd": "14101"
+},
+"kanagawa-yokohama-1": {
+"lv01Nm": "鶴屋町二丁目",
+"muniCd": "14102"
+},
+"kanagawa-yokohama-2": {
+"lv01Nm": "南幸一丁目",
+"muniCd": "14103"
+},
+"kanagawa-yokohama-3": {
+"lv01Nm": "南幸一丁目",
+"muniCd": "14103"
+},
+"kanagawa-yokohama-4": {
+"lv01Nm": "高島二丁目",
+"muniCd": "14103"
+},
+"kanagawa-yokohama-5": {
+"lv01Nm": "高島二丁目",
+"muniCd": "14103"
+},
 "kyoto-1": {
 "lv01Nm": "小山下総町",
 "muniCd": "26101"

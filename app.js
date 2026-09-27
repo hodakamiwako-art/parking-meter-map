@@ -14,8 +14,8 @@ const BASE = CARTO_KEY ? {
   attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   subdomains: 'abc', maxNativeZoom: 19,
 };
-const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）・<a href="https://www.police.pref.osaka.lg.jp/kotsu/tyusya/1/1/index.html" target="_blank" rel="noopener">大阪府警察</a>・北海道警察・京都府警察（線は OpenStreetMap から作成）';
-const PREFS = ['北海道', '東京都', '京都府', '大阪府']; // エリアの選択肢と「◯◯を表示」の並び
+const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）・<a href="https://www.police.pref.osaka.lg.jp/kotsu/tyusya/1/1/index.html" target="_blank" rel="noopener">大阪府警察</a>・神奈川県警察・北海道警察・京都府警察（線は OpenStreetMap から作成）';
+const PREFS = ['北海道', '東京都', '神奈川県', '京都府', '大阪府']; // エリアの選択肢と「◯◯を表示」の並び
 
 // 国土地理院の地名検索・住所の逆引き（鍵不要）
 const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';
@@ -71,10 +71,10 @@ function initMap() {
 
 const COLORS = () => {
   const cs = getComputedStyle(document.documentElement);
-  return { daily: cs.getPropertyValue('--daily').trim(), closed: cs.getPropertyValue('--closed').trim() };
+  return { daily: cs.getPropertyValue('--daily').trim(), closed: cs.getPropertyValue('--closed').trim(), unknown: cs.getPropertyValue('--unknown').trim() };
 };
 // 線の色は曜日で分ける：土日・祝日も使える／日曜・祝日は除く（一部は土曜も除く）
-const dayClass = z => (z.days === 'daily' ? 'daily' : 'closed');
+const dayClass = z => (z.days === 'daily' ? 'daily' : z.days === 'unknown' ? 'unknown' : 'closed');
 // メーターは実線、チケットは破線。破線の間隔は線の太さに合わせる
 const dash = (z, w) => (z.kind === 'ticket' ? `${w} ${Math.round(w * 1.8)}` : null);
 const weight = () => Math.max(3, Math.min(9, map.getZoom() - 9));
@@ -133,7 +133,7 @@ function applyFilters() {
     if (state.vehicle === 'truck' && !z.truck) return false;
     if (state.vehicle === 'bike' && !z.bike) return false;
     if (state.days === 'daily' && z.days !== 'daily') return false;
-    if (state.days === 'closed' && z.days === 'daily') return false;
+    if (state.days === 'closed' && (z.days === 'daily' || z.days === 'unknown')) return false;
     if (state.at === 'now' ? !Zones.openNow(z, now, holidays.dates) : state.at && !Zones.usableAt(z, +state.at)) return false;
     return true;
   });
@@ -218,7 +218,7 @@ function openDetail(z, fly = true) {
   const holiday = holidays.dates[Zones.ymd(today)];
   $('#detail').innerHTML = `
     <button class="close" aria-label="閉じる">×</button>
-    <div class="badges"><span class="badge ${dayClass(z)}">${z.days === 'daily' ? '土日・祝日も使える' : z.days === 'weekday' ? '土・日・祝日は除く' : '日曜・祝日は除く'}</span><span class="badge kind">${KIND[z.kind]}</span></div>
+    <div class="badges"><span class="badge ${dayClass(z)}">${z.days === 'daily' ? '土日・祝日も使える' : z.days === 'weekday' ? '土・日・祝日は除く' : z.days === 'unknown' ? '時間・曜日は現地で確認' : '日曜・祝日は除く'}</span><span class="badge kind">${KIND[z.kind]}</span></div>
     <h2>${esc(terms(z))}</h2>
     <dl>
       ${row('場所', z.addr || '住所を調べています…', 'addr')}
@@ -227,9 +227,9 @@ function openDetail(z, fly = true) {
       ${row('枠数', z.spaces != null ? `${z.spaces}台` + (z.truckSpaces ? `（うち貨物車 ${z.truckSpaces}台）` : '') : '')}
       ${row('制限時間', fmtLimit(z))}
       ${row('料金', fmtFee(z) && `${fmtFee(z)}（${fmtLimit(z) || '1回'}）`)}
-      ${row('利用時間', z.hours)}
+      ${row('利用時間', z.hours || (z.days === 'unknown' ? '県警の公開情報になし（現地の標識で確認）' : ''))}
       ${row('除く日', z.rules.join('、'))}
-      ${row('いま', (open ? '利用時間内' : '利用時間外') + (holiday ? `（今日は${holiday}）` : holidayKnown() ? '' : '（祝日は判定していません）'))}
+      ${z.days === 'unknown' ? '' : row('いま', (open ? '利用時間内' : '利用時間外') + (holiday ? `（今日は${holiday}）` : holidayKnown() ? '' : '（祝日は判定していません）'))}
       ${row('車種', vehicles(z))}
       ${z.permitOnly ? row('注意', '標章車（障害者等用）専用の枠があります') : ''}
       ${z.pref === '東京都' ? row('区間番号', z.id) : ''}
@@ -312,7 +312,7 @@ function fillHours() {
 
 /* ---------- エリアの選択肢 ---------- */
 // 画面での呼び名：東京都→東京、大阪府→大阪、京都府→京都、北海道→札幌（区間は札幌だけのため）
-const prefName = p => ({ 北海道: '札幌' }[p] || p.replace(/[都府]$/, ''));
+const prefName = p => ({ 北海道: '札幌' }[p] || p.replace(/[都府県]$/, ''));
 function count(list, k) {
   const n = {};
   list.forEach(z => { if (z[k]) n[z[k]] = (n[z[k]] || 0) + 1; });
