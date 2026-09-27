@@ -93,7 +93,6 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .mapbtn[aria-busy="true"]{cursor:progress;color:var(--accent)}
 .mapbtn[aria-busy="true"] svg{animation:locating 1.2s ease-in-out infinite}
 @keyframes locating{50%{opacity:.35}}
-@media (prefers-reduced-motion:reduce){.mapbtn[aria-busy="true"] svg{animation:none;opacity:.5}}
 .legend{position:absolute;left:12px;bottom:calc(var(--attr-h,18px) + 12px);z-index:900;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:var(--shadow);font-size:12px;display:grid;grid-template-columns:auto auto;gap:3px 14px}
 .lrow{display:flex;align-items:center;gap:6px}
 .k{display:inline-block;width:18px;height:5px;border-radius:3px;flex:none}
@@ -189,4 +188,12 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
   .detail.open{transform:none}
   .detail dl{gap:4px 14px;margin-bottom:12px}
   .detail h2{margin:4px 0 8px}
+}
+
+/* ---------- 視差効果を減らす ---------- */
+@media (prefers-reduced-motion:reduce){
+  .mapbtn[aria-busy="true"] svg{animation:none;opacity:.5}
+  /* 詳細はすべらせずに、その場で薄く出し入れする（開いた・閉じたは伝わるように） */
+  .detail,.detail.open{transform:none;transition:opacity .15s ease,visibility 0s}
+  .detail:not(.open){opacity:0;visibility:hidden;transition:opacity .15s ease,visibility 0s .15s}
 }

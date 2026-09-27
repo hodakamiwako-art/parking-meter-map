@@ -48,6 +48,8 @@ const addrCache = new Map();
 
 /* ---------- 地図 ---------- */
 const darkQ = window.matchMedia('(prefers-color-scheme: dark)');
+// 「視差効果を減らす」の設定では、地図を飛ばさずにその場で切り替える
+const calmQ = window.matchMedia('(prefers-reduced-motion: reduce)');
 function setTiles() {
   if (tiles) map.removeLayer(tiles);
   tiles = L.tileLayer(darkQ.matches ? BASE.dark : BASE.light, {
@@ -277,9 +279,11 @@ function openDetail(z, fly = true) {
     // 詳細が重なる分をよけて、選んだ区間が見える位置に寄せる（スマホは下のシート、広い画面は右のカード）
     const b = L.latLngBounds(z.lines.flat());
     const sheet = $('#detail').offsetHeight;
-    map.flyToBounds(b, narrow()
+    const opts = narrow()
       ? { maxZoom: 18, paddingTopLeft: [40, 150], paddingBottomRight: [40, sheet + 30], duration: .6 }
-      : { maxZoom: 18, paddingTopLeft: [listOpen() ? 440 : 60, 60], paddingBottomRight: [420, 60], duration: .6 });
+      : { maxZoom: 18, paddingTopLeft: [listOpen() ? 440 : 60, 60], paddingBottomRight: [420, 60], duration: .6 };
+    if (calmQ.matches) map.fitBounds(b, { ...opts, animate: false });
+    else map.flyToBounds(b, opts);
   }
   address(z)
     .then(a => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = a || '（住所を特定できませんでした）'; })
@@ -330,7 +334,7 @@ async function goPlace(q) {
     if (placeMark) map.removeLayer(placeMark);
     placeMark = L.circleMarker([lat, lng], { pane: 'marks', radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
       .bindTooltip(esc(hit.properties.title)).addTo(map);
-    map.setView([lat, lng], 16);
+    map.setView([lat, lng], 16, { animate: !calmQ.matches });
     if (listOpen()) renderList();
     say(`${hit.properties.title} の近く`);
   } catch (e) {
@@ -401,7 +405,7 @@ function fillTowns() {
 function fitAll(pref) {
   const pts = shown.filter(z => !pref || z.pref === pref).flatMap(z => z.lines.flat());
   // 左上の検索・条件入力の下に隠れないよう、上側を広めにあける
-  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60] });
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60], animate: !calmQ.matches });
 }
 
 const narrow = () => window.innerWidth <= 760;
@@ -492,7 +496,7 @@ function bind() {
       if (hereMark) map.removeLayer(hereMark);
       // 現在地はオレンジ（区間の線の緑・青と見分けるため）。線より上の層に置く
       hereMark = L.circleMarker(state.here, { pane: 'marks', radius: 9, color: '#fff', weight: 3, fillColor: '#F28C28', fillOpacity: 1 }).addTo(map);
-      map.setView(state.here, 17);
+      map.setView(state.here, 17, { animate: !calmQ.matches });
       if (listOpen()) renderList();
     }, err => {
       done();
