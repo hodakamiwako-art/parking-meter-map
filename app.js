@@ -62,6 +62,8 @@ function initMap() {
   setTiles();
   darkQ.addEventListener?.('change', () => { setTiles(); draw(); });
   layer = L.layerGroup().addTo(map);
+  // 現在地・検索した場所の印は、区間の線を描き直しても隠れないよう別の層に置く
+  map.createPane('marks').style.zIndex = 450;
   map.on('moveend', () => { if (!state.here && listOpen()) renderList(); });
   map.on('zoomend', highlight);
 }
@@ -269,7 +271,7 @@ async function goPlace(q) {
     const [lng, lat] = hit.geometry.coordinates;
     state.here = null;
     if (placeMark) map.removeLayer(placeMark);
-    placeMark = L.circleMarker([lat, lng], { radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
+    placeMark = L.circleMarker([lat, lng], { pane: 'marks', radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
       .bindTooltip(esc(hit.properties.title)).addTo(map);
     map.setView([lat, lng], 16);
     if (listOpen()) renderList();
@@ -397,7 +399,8 @@ function bind() {
     navigator.geolocation.getCurrentPosition(p => {
       state.here = [p.coords.latitude, p.coords.longitude];
       if (hereMark) map.removeLayer(hereMark);
-      hereMark = L.circleMarker(state.here, { radius: 8, color: '#fff', weight: 3, fillColor: '#2A7FFF', fillOpacity: 1 }).addTo(map);
+      // 現在地はオレンジ（区間の線の緑・青と見分けるため）。線より上の層に置く
+      hereMark = L.circleMarker(state.here, { pane: 'marks', radius: 9, color: '#fff', weight: 3, fillColor: '#F28C28', fillOpacity: 1 }).addTo(map);
       map.setView(state.here, 17);
       if (listOpen()) renderList();
     }, () => alert('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
