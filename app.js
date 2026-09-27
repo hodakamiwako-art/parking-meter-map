@@ -68,8 +68,12 @@ function initMap() {
 
 const COLORS = () => {
   const cs = getComputedStyle(document.documentElement);
-  return { meter: cs.getPropertyValue('--meter').trim(), ticket: cs.getPropertyValue('--ticket').trim() };
+  return { daily: cs.getPropertyValue('--daily').trim(), closed: cs.getPropertyValue('--closed').trim() };
 };
+// 線の色は曜日で分ける：土日・祝日も使える／日曜・祝日は除く（一部は土曜も除く）
+const dayClass = z => (z.days === 'daily' ? 'daily' : 'closed');
+// メーターは実線、チケットは破線。破線の間隔は線の太さに合わせる
+const dash = (z, w) => (z.kind === 'ticket' ? `${w} ${Math.round(w * 1.8)}` : null);
 const weight = () => Math.max(3, Math.min(9, map.getZoom() - 9));
 
 function draw() {
@@ -78,8 +82,9 @@ function draw() {
   const col = COLORS();
   for (const z of shown) {
     const pls = z.lines.map(l => l.length === 1
-      ? L.circleMarker(l[0], { radius: 6, color: col[z.kind], weight: 2, fillOpacity: .8 })
-      : L.polyline(l, { color: col[z.kind], weight: weight(), opacity: .85, lineCap: 'round' }));
+      ? L.circleMarker(l[0], { radius: 6, color: col[dayClass(z)], weight: 2, fillOpacity: .8 })
+      : L.polyline(l, { color: col[dayClass(z)], weight: weight(), opacity: .85, lineCap: 'round', dashArray: dash(z, weight()) }));
+    pls.forEach(p => { p.zone = z; });
     pls.forEach(p => {
       p.on('click', () => openDetail(z, false));
       p.bindTooltip(esc(title(z)), { sticky: true, direction: 'top' });
@@ -93,7 +98,8 @@ function draw() {
 function highlight() {
   drawn.forEach((pls, id) => pls.forEach(p => {
     if (p instanceof L.CircleMarker) return;
-    p.setStyle({ weight: id === state.sel ? weight() + 5 : weight(), opacity: id === state.sel ? 1 : .85 });
+    const w = id === state.sel ? weight() + 5 : weight();
+    p.setStyle({ weight: w, opacity: id === state.sel ? 1 : .85, dashArray: dash(p.zone, w) });
     if (id === state.sel) p.bringToFront();
   }));
 }
@@ -150,7 +156,7 @@ function listItem(z, d) {
   const meta = [z.addr && terms(z), z.hours, rule].filter(Boolean);
   return `
     <li data-id="${esc(z.id)}" class="${z.id === state.sel ? 'on' : ''}">
-      <span class="k ${z.kind}"></span>
+      <span class="k ${dayClass(z)} ${z.kind}"></span>
       <div class="body">
         <div class="nm">${esc(head)}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
         <div class="meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
@@ -207,7 +213,7 @@ function openDetail(z, fly = true) {
   const holiday = holidays.dates[Zones.ymd(today)];
   $('#detail').innerHTML = `
     <button class="close" aria-label="閉じる">×</button>
-    <div class="badge ${z.kind}">${KIND[z.kind]}</div>
+    <div class="badges"><span class="badge ${dayClass(z)}">${z.days === 'daily' ? '土日・祝日も使える' : z.days === 'weekday' ? '土・日・祝日は除く' : '日曜・祝日は除く'}</span><span class="badge kind">${KIND[z.kind]}</span></div>
     <h2>${esc(terms(z))}</h2>
     <dl>
       ${row('場所', z.addr || '住所を調べています…', 'addr')}
