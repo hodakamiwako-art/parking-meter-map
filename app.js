@@ -54,11 +54,24 @@ function setTiles() {
     attribution: BASE.attr, subdomains: BASE.subdomains,
     maxNativeZoom: BASE.maxNativeZoom, maxZoom: 21, detectRetina: true,
   }).addTo(map);
+  // CARTO の鍵がないと暗いタイルがないので、ダークテーマでは明るいタイルを反転して暗くする
+  map.getContainer().classList.toggle('dimtiles', darkQ.matches && !CARTO_KEY);
 }
 
 function initMap() {
   map = L.map('map', { center: TOKYO, zoom: 13, zoomControl: false, minZoom: 6, maxZoom: 21, preferCanvas: true });
   L.control.zoom({ position: 'bottomright' }).addTo(map);
+  // 現在地ボタンはズームの上に積む（右下のクレジットが何行になっても重ならない）
+  const Locate = L.Control.extend({ onAdd() {
+    const box = L.DomUtil.create('div', 'locatectl');
+    box.append($('#locate'));
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  } });
+  new Locate({ position: 'bottomright' }).addTo(map);
+  // 凡例はクレジットの高さに合わせて、その上に置く
+  const attr = map.attributionControl.getContainer();
+  new ResizeObserver(() => $('.mapwrap').style.setProperty('--attr-h', `${attr.offsetHeight}px`)).observe(attr);
   map.attributionControl.addAttribution(SRC_ATTR);
   setTiles();
   darkQ.addEventListener?.('change', () => { setTiles(); draw(); });

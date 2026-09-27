@@ -30,7 +30,7 @@ Drivers who are already out on the road in a Japanese city. They open the map on
 
 - A static site hosted on GitHub Pages, built with vanilla JS and Leaflet 1.9.4 (in `vendor/`). There is no build step and no backend; keep it that way. After changing `*.css` / `*.js`, run `python3 build/stamp.py` so the version stamps in `index.html` update.
 - **Japanese only.** No English UI is planned.
-- Supports light and dark themes. Map tiles come from CARTO when `config.js` has a key; otherwise OpenStreetMap, which is light only.
+- Supports light and dark themes. Map tiles come from CARTO when `config.js` has a key; otherwise OpenStreetMap, whose light tiles are colour-inverted in dark mode.
 - Line colour shows the days a section can be used: green = usable on weekends and holidays too; blue = closed on Sundays and holidays. Solid lines are meters and dashed lines are tickets.
 - Terms in use: 区間 (section), パーキング・メーター, パーキング・チケット, 制限時間, 手数料, 利用時間, 除く日, 車種.
 

@@ -109,7 +109,7 @@ vendor/           Leaflet 1.9.4
 
 ## 地図の下地について
 
-`config.js` の `cartoApiKey` が空のときは OpenStreetMap のタイルを使います（明るい配色のみ）。
+`config.js` の `cartoApiKey` が空のときは OpenStreetMap のタイルを使います（ダークテーマでは明るいタイルを反転して暗く見せます）。
 [carto.com/basemaps/apikey](https://carto.com/basemaps/apikey/) で公開ドメイン用の無料の鍵を取って入れると、
 ダークテーマに追従する CARTO のタイルに切り替わります。
 

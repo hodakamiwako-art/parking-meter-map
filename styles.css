@@ -68,7 +68,7 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .search input{border:0;background:transparent;outline:0;padding:11px 0;width:100%;font-size:16px}
 .qnote{font-size:12px;color:var(--ink-2);background:var(--surface);border-radius:8px;padding:4px 10px;justify-self:start;box-shadow:var(--shadow)}
 .barrow{display:flex;align-items:center;gap:8px}
-.ftoggle{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
+.ftoggle{display:inline-flex;align-items:center;gap:8px;min-height:44px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:var(--shadow)}
 .ftoggle svg{width:18px;height:18px}
 .ftoggle[aria-expanded="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
 .fcount{min-width:20px;height:20px;border-radius:10px;background:var(--accent);color:var(--surface);font-size:12px;display:inline-grid;place-items:center;padding:0 6px}
@@ -76,22 +76,21 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .count{font-size:13px;color:var(--ink-2);background:var(--surface);border-radius:999px;padding:6px 12px;box-shadow:var(--shadow)}
 .count b{color:var(--ink)}
 
-.filters{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 14px 14px;display:grid;max-height:calc(100vh - var(--head-h) - 140px);overflow-y:auto}
+.filters{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 14px 14px;display:grid;max-height:calc(100vh - var(--head-h) - 140px);max-height:calc(100dvh - var(--head-h) - 140px);overflow-y:auto;overscroll-behavior:contain}
 .filters label{display:grid;grid-template-columns:5.5em 1fr;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
 .filters label span{font-size:13px;color:var(--muted)}
-.filters select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px;font-size:15px;min-width:0}
+.filters select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px;font-size:16px;min-width:0;min-height:44px}
 .filters select:disabled{opacity:.45}
 .fnote{margin:8px 0 0;font-size:11px;color:var(--muted)}
 .factions{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
 
-.mapbtns{position:absolute;right:10px;bottom:118px;z-index:900;display:grid;gap:8px}
 .mapbtn{width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;display:grid;place-items:center}
 .mapbtn svg{width:22px;height:22px}
 .mapbtn[aria-busy="true"]{cursor:progress;color:var(--accent)}
 .mapbtn[aria-busy="true"] svg{animation:locating 1.2s ease-in-out infinite}
 @keyframes locating{50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.mapbtn[aria-busy="true"] svg{animation:none;opacity:.5}}
-.legend{position:absolute;left:12px;bottom:30px;z-index:900;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:var(--shadow);font-size:12px;display:grid;grid-template-columns:auto auto;gap:3px 14px}
+.legend{position:absolute;left:12px;bottom:calc(var(--attr-h,18px) + 12px);z-index:900;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;box-shadow:var(--shadow);font-size:12px;display:grid;grid-template-columns:auto auto;gap:3px 14px}
 .lrow{display:flex;align-items:center;gap:6px}
 .k{display:inline-block;width:18px;height:5px;border-radius:3px;flex:none}
 .k.daily{--c:var(--daily)}
@@ -101,10 +100,23 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .k.plain{--c:var(--muted);background:var(--c)}
 .k.plain.ticket{background:repeating-linear-gradient(90deg,var(--c) 0 5px,transparent 5px 9px)}
 
+/* Leaflet の部品（ズーム・クレジット・吹き出し）もテーマの色に合わせる */
+.leaflet-bar,.leaflet-touch .leaflet-bar{border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;background-clip:padding-box}
+.leaflet-bar a,.leaflet-touch .leaflet-bar a{width:44px;height:44px;line-height:44px;font-size:22px;font-weight:500;background:var(--surface);color:var(--ink);border-bottom-color:var(--line)}
+.leaflet-bar a:hover,.leaflet-bar a:focus-visible{background:var(--surface-2);color:var(--ink)}
+.leaflet-bar a.leaflet-disabled{background:var(--surface);color:var(--muted);opacity:.5}
+.leaflet-bar a:first-child{border-radius:0}.leaflet-bar a:last-child{border-radius:0;border-bottom:0}
+.locatectl{margin-bottom:8px}
+.leaflet-container .leaflet-control-attribution{background:color-mix(in srgb,var(--surface) 88%,transparent);color:var(--muted)}
+.leaflet-control-attribution a{color:var(--accent)}
+.leaflet-tooltip{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);font-size:13px}
+.leaflet-tooltip-top:before{border-top-color:var(--surface)}
+.dimtiles .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.85) saturate(.5)}
+
 /* ---------- ボタン ---------- */
 .btn{display:inline-block;text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;font-size:14px;color:var(--ink);cursor:pointer}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:700}
-.close{border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:var(--muted);width:40px;height:40px;border-radius:10px}
+.close{border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:var(--muted);width:44px;height:44px;border-radius:10px}
 .close:hover{background:var(--surface-2)}
 
 /* ---------- 一覧（メニューから開く） ---------- */
@@ -115,7 +127,8 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .listhead h2:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
 .listhead small{font-size:13px;font-weight:500;color:var(--muted);margin-left:6px}
 .listsort{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:0 16px 8px;font-size:13px;color:var(--muted);border-bottom:1px solid var(--line)}
-.listsort select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 8px;font-size:13px}
+.listsort select{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 8px;font-size:13px;min-height:36px}
+@media (pointer:coarse){.listsort select{font-size:16px;min-height:44px}}
 .list{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1}
 .list li{border-bottom:1px solid var(--line)}
 .list .row{display:flex;align-items:center;gap:12px;width:100%;padding:11px 16px;border:0;background:transparent;text-align:left;cursor:pointer}
@@ -155,7 +168,7 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .detail h2:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:4px}
 .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .acts .btn{text-align:center;padding:10px 8px}
-.acts .maplink{grid-column:1 / -1;font-size:12px;color:var(--muted);text-align:center}
+.acts .maplink{grid-column:1 / -1;display:flex;align-items:center;justify-content:center;min-height:44px;font-size:12px;color:var(--muted)}
 .warn{font-size:12px;background:var(--warn-wash);color:var(--warn);border-radius:8px;padding:8px 10px;margin:0}
 
 .empty{position:fixed;inset:var(--head-h) 0 0 0;z-index:1300;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--ground) 80%,transparent)}
@@ -170,7 +183,5 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
   .detail{top:auto;bottom:0;left:0;right:0;width:auto;max-height:58%;border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));transform:translateY(105%)}
   .detail.open{transform:none}
   .detail dl{gap:4px 14px;margin-bottom:12px}
-  /* 右下のクレジットが2行になるので、凡例をその上に */
-  .legend{bottom:48px}
   .detail h2{margin:4px 0 8px}
 }

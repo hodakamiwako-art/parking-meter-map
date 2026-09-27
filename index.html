@@ -5,14 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>パーキング・メーター・マップ</title>
 <meta name="description" content="東京・大阪・京都・札幌のパーキング・メーター／パーキング・チケットの設置区間を地図で探せます。各都道府県警察の公開情報を使っています。">
-<meta name="theme-color" content="#1E4E8C">
+<meta name="theme-color" content="#1E4E8C" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B23" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-title" content="パーキング・メーター・マップ">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="vendor/leaflet.css?v=ec929f11">
-<link rel="stylesheet" href="styles.css?v=86b759c2">
+<link rel="stylesheet" href="styles.css?v=45a57f21">
 </head>
 <body>
 
@@ -87,9 +88,8 @@
     </div>
   </div>
 
-  <div class="mapbtns">
-    <button class="mapbtn" id="locate" title="現在地を表示" aria-label="現在地を表示"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-  </div>
+  <!-- 現在地ボタンは地図の右下（ズームの上）へ app.js が移す -->
+  <button class="mapbtn" id="locate" title="現在地を表示" aria-label="現在地を表示"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
   <div class="legend">
     <div class="lrow"><span class="k daily"></span>土日・祝日も使える</div>
     <div class="lrow"><span class="k plain"></span>メーター</div>
@@ -120,9 +120,9 @@
 
 <aside class="detail" id="detail" aria-label="区間の詳細" inert></aside>
 
-<script src="config.js?v=64f92221"></script>
+<script src="config.js?v=2ea24b0d"></script>
 <script src="vendor/leaflet.js?v=5a640ff8"></script>
 <script src="zones.js?v=44bf01ba"></script>
-<script src="app.js?v=27f6b39c"></script>
+<script src="app.js?v=e22e8cab"></script>
 </body>
 </html>
