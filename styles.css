@@ -141,7 +141,9 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
 .detail dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0 0 14px;font-size:14px}
 .detail dt{color:var(--muted)}
 .detail dd{margin:0}
-.acts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.acts .btn{text-align:center;padding:10px 8px}
+.acts .maplink{grid-column:1 / -1;font-size:12px;color:var(--muted);text-align:center}
 .warn{font-size:12px;background:var(--warn-wash);color:var(--warn);border-radius:8px;padding:8px 10px;margin:0}
 
 .empty{position:fixed;inset:var(--head-h) 0 0 0;z-index:1300;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--ground) 80%,transparent)}
