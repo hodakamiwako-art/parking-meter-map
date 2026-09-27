@@ -36,9 +36,9 @@ const MUNI = {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { ward: '', town: '', days: '', at: '', limit: '', vehicle: '', sort: 'near', here: null, sel: null };
+const state = { pref: '', ward: '', town: '', days: '', at: '', limit: '', vehicle: '', sort: 'near', here: null, sel: null };
 // 条件入力の項目（画面の並び順）。数えるのとクリアに使う
-const FILTERS = ['ward', 'town', 'days', 'at', 'limit', 'vehicle'];
+const FILTERS = ['pref', 'ward', 'town', 'days', 'at', 'limit', 'vehicle'];
 let zones = [];
 let holidays = { years: [], dates: {} }; // data/holidays.json
 let shown = [];
@@ -122,6 +122,7 @@ const vehicles = z => [z.car && '普通車', z.truck && '貨物用あり', z.bik
 function applyFilters() {
   const now = new Date();
   shown = zones.filter(z => {
+    if (state.pref && z.pref !== state.pref) return false;
     if (state.ward && z.ward !== state.ward) return false;
     if (state.town && z.town !== state.town) return false;
     if (state.limit) {
@@ -315,15 +316,21 @@ function count(list, k) {
   return n;
 }
 
+function fillPrefs() {
+  const n = count(zones, 'pref');
+  $('#pref').innerHTML = '<option value="">すべて</option>' +
+    PREFS.filter(p => n[p]).map(p => `<option value="${p}">${p.replace(/[都府]$/, '')}（${n[p]}）</option>`).join('');
+  $('#ward').closest('label').hidden = $('#town').closest('label').hidden = !zones.some(z => z.ward);
+  fillWards();
+}
+
+// 区・市は、選んだ都府県のものだけを区間の多い順に出す（東京と大阪は混ぜない）
 function fillWards() {
-  const n = count(zones, 'ward');
-  // 都道府県ごとにまとめ、その中は区間の多い順
-  $('#ward').innerHTML = '<option value="">すべて</option>' + PREFS.map(pref => {
-    const wards = [...new Set(zones.filter(z => z.pref === pref && z.ward).map(z => z.ward))].sort((a, b) => n[b] - n[a]);
-    return wards.length ? `<optgroup label="${pref}">${wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('')}</optgroup>` : '';
-  }).join('');
-  const wards = Object.keys(n);
-  $('#ward').closest('label').hidden = $('#town').closest('label').hidden = !wards.length;
+  const n = count(zones.filter(z => z.pref === state.pref), 'ward');
+  const wards = Object.keys(n).sort((a, b) => n[b] - n[a]);
+  $('#ward').innerHTML = `<option value="">${state.pref ? 'すべて' : '先に都府県を選んでください'}</option>` +
+    wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('');
+  $('#ward').disabled = !state.pref;
   fillTowns();
 }
 
@@ -371,7 +378,7 @@ function toggleFilters(open = $('#filters').hidden) {
 
 function resetFilters() {
   FILTERS.forEach(k => { state[k] = ''; $('#' + k).value = ''; });
-  fillTowns();
+  fillWards();
   applyFilters();
   fitAll();
 }
@@ -389,6 +396,13 @@ function bind() {
   $('#ftoggle').addEventListener('click', () => toggleFilters());
   $('#fdone').addEventListener('click', () => toggleFilters(false));
   $('#freset').addEventListener('click', resetFilters);
+  $('#pref').addEventListener('change', e => {
+    state.pref = e.target.value;
+    state.ward = state.town = '';
+    fillWards();
+    applyFilters();
+    fitAll(state.pref);
+  });
   $('#ward').addEventListener('change', e => {
     state.ward = e.target.value;
     state.town = '';
@@ -442,7 +456,7 @@ async function boot() {
     holidays = await (await fetch('data/holidays.json', { cache: 'no-cache' })).json();
   } catch (e) { /* 祝日一覧がなくても動く（祝日を判定しないだけ） */ }
   holidayNote();
-  fillWards();
+  fillPrefs();
   fillHours();
   applyFilters();
   fitAll('東京都'); // 最初は区間の多い東京を見せる。大阪はメニューの「大阪を表示」から
