@@ -48,17 +48,32 @@ const addrCache = new Map();
 
 /* ---------- 地図 ---------- */
 const darkQ = window.matchMedia('(prefers-color-scheme: dark)');
+// 「視差効果を減らす」の設定では、地図を飛ばさずにその場で切り替える
+const calmQ = window.matchMedia('(prefers-reduced-motion: reduce)');
 function setTiles() {
   if (tiles) map.removeLayer(tiles);
   tiles = L.tileLayer(darkQ.matches ? BASE.dark : BASE.light, {
     attribution: BASE.attr, subdomains: BASE.subdomains,
     maxNativeZoom: BASE.maxNativeZoom, maxZoom: 21, detectRetina: true,
   }).addTo(map);
+  // CARTO の鍵がないと暗いタイルがないので、ダークテーマでは明るいタイルを反転して暗くする
+  map.getContainer().classList.toggle('dimtiles', darkQ.matches && !CARTO_KEY);
 }
 
 function initMap() {
   map = L.map('map', { center: TOKYO, zoom: 13, zoomControl: false, minZoom: 6, maxZoom: 21, preferCanvas: true });
   L.control.zoom({ position: 'bottomright' }).addTo(map);
+  // 現在地ボタンはズームの上に積む（右下のクレジットが何行になっても重ならない）
+  const Locate = L.Control.extend({ onAdd() {
+    const box = L.DomUtil.create('div', 'locatectl');
+    box.append($('#locate'));
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  } });
+  new Locate({ position: 'bottomright' }).addTo(map);
+  // 凡例はクレジットの高さに合わせて、その上に置く
+  const attr = map.attributionControl.getContainer();
+  new ResizeObserver(() => $('.mapwrap').style.setProperty('--attr-h', `${attr.offsetHeight}px`)).observe(attr);
   map.attributionControl.addAttribution(SRC_ATTR);
   setTiles();
   darkQ.addEventListener?.('change', () => { setTiles(); draw(); });
@@ -120,6 +135,7 @@ const vehicles = z => (z.truckOnly ? '貨物車専用（積載量5トン未満�
   : [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・'));
 
 /* ---------- 絞り込みと一覧 ---------- */
+let shownKey = ''; // いま地図に描いている区間の顔ぶれ
 function applyFilters() {
   const now = new Date();
   shown = zones.filter(z => {
@@ -138,11 +154,15 @@ function applyFilters() {
     return true;
   });
   const n = shown.length.toLocaleString();
-  ['#n', '#n2', '#n3'].forEach(id => { $(id).textContent = n; });
+  // 読み上げ（role=status）が同じ数を繰り返さないよう、変わったときだけ書く
+  ['#n', '#n2', '#n3'].forEach(id => { if ($(id).textContent !== n) $(id).textContent = n; });
+  $('#fempty').hidden = shown.length > 0;
   const active = FILTERS.filter(k => state[k]).length;
   $('#fcount').textContent = active;
   $('#fcount').hidden = !active;
-  draw();
+  // 1分ごとの「いま使える」見直しなどで顔ぶれが変わらなければ、線を描き直さない
+  const key = shown.map(z => z.id).join();
+  if (key !== shownKey) { shownKey = key; draw(); }
   if (listOpen()) renderList();
 }
 
@@ -160,14 +180,14 @@ function listItem(z, d) {
   const head = z.addr ? `${z.ward === state.ward ? '' : z.ward}${z.addr.slice(z.ward.length)}` : terms(z);
   const meta = [z.addr && terms(z), z.hours, rule].filter(Boolean);
   return `
-    <li data-id="${esc(z.id)}" class="${z.id === state.sel ? 'on' : ''}">
+    <li data-id="${esc(z.id)}" class="${z.id === state.sel ? 'on' : ''}"><button type="button" class="row"${z.id === state.sel ? ' aria-current="true"' : ''}>
       <span class="k ${dayClass(z)} ${z.kind}"></span>
-      <div class="body">
-        <div class="nm">${esc(head)}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-        <div class="meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
-      </div>
+      <span class="body">
+        <span class="nm">${esc(head)}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</span>
+        <span class="meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</span>
+      </span>
       <span class="dist">${fmtDist(d)}</span>
-    </li>`;
+    </button></li>`;
 }
 
 function renderList() {
@@ -198,6 +218,7 @@ async function address(z) {
   if (addrCache.has(z.id)) return addrCache.get(z.id);
   const [lat, lng] = z.center;
   const res = await fetch(`${GSI_REVERSE}?lat=${lat}&lon=${lng}`);
+  if (!res.ok) throw new Error(res.status);
   const r = (await res.json()).results;
   const text = r ? `${MUNI[+r.muniCd] || ''}${r.lv01Nm && r.lv01Nm !== '－' ? r.lv01Nm : ''}` : '';
   addrCache.set(z.id, text);
@@ -205,10 +226,21 @@ async function address(z) {
 }
 
 /* ---------- 詳細 ---------- */
+let returnFocus = null, returnId = null; // 詳細を閉じたときにフォーカスを戻す先
+function markSelected(id) {
+  document.querySelectorAll('#list li[data-id]').forEach(li => {
+    li.classList.toggle('on', li.dataset.id === id);
+    li.firstElementChild.toggleAttribute('aria-current', li.dataset.id === id);
+  });
+}
+
 function openDetail(z, fly = true) {
+  if (!$('#detail').contains(document.activeElement)) returnFocus = document.activeElement;
+  // 一覧の行から開いたときは、地図の移動で一覧が描き直されても同じ行へ戻れるよう区間の id も覚える
+  returnId = returnFocus?.closest?.('#list li[data-id]')?.dataset.id;
   state.sel = z.id;
   highlight();
-  document.querySelectorAll('#list li').forEach(li => li.classList.toggle('on', li.dataset.id === z.id));
+  markSelected(z.id);
   if (narrow()) closeList();
   toggleFilters(false);
   const row = (k, v, id) => (v ? `<dt>${k}</dt><dd${id ? ` id="${id}"` : ''}>${esc(v)}</dd>` : '');
@@ -217,9 +249,9 @@ function openDetail(z, fly = true) {
   const open = Zones.openNow(z, today, holidays.dates);
   const holiday = holidays.dates[Zones.ymd(today)];
   $('#detail').innerHTML = `
-    <button class="close" aria-label="閉じる">×</button>
+    <button class="close" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="badges"><span class="badge ${dayClass(z)}">${z.days === 'daily' ? '土日・祝日も使える' : z.days === 'weekday' ? '土・日・祝日は除く' : z.days === 'unknown' ? '時間・曜日は現地で確認' : '日曜・祝日は除く'}</span><span class="badge kind">${KIND[z.kind]}</span></div>
-    <h2>${esc(terms(z))}</h2>
+    <h2 tabindex="-1">${esc(terms(z))}</h2>
     <dl>
       ${row('場所', z.addr || '住所を調べています…', 'addr')}
       ${row('路線', z.route)}
@@ -242,14 +274,19 @@ function openDetail(z, fly = true) {
     </div>
     <p class="warn">現地の標識・メーターの表示が優先されます。利用時間外は駐車できないことがあります。工事や行事で使えない場合もあります。</p>`;
   $('#detail').classList.add('open');
+  $('#detail').inert = false;
   $('#detail .close').onclick = closeDetail;
+  // キーボード・読み上げで使う人のために、開いた詳細の見出しへフォーカスを移す
+  $('#detail h2').focus({ preventScroll: true });
   if (fly) {
     // 詳細が重なる分をよけて、選んだ区間が見える位置に寄せる（スマホは下のシート、広い画面は右のカード）
     const b = L.latLngBounds(z.lines.flat());
     const sheet = $('#detail').offsetHeight;
-    map.flyToBounds(b, narrow()
+    const opts = narrow()
       ? { maxZoom: 18, paddingTopLeft: [40, 150], paddingBottomRight: [40, sheet + 30], duration: .6 }
-      : { maxZoom: 18, paddingTopLeft: [listOpen() ? 440 : 60, 60], paddingBottomRight: [420, 60], duration: .6 });
+      : { maxZoom: 18, paddingTopLeft: [listOpen() ? 440 : 60, 60], paddingBottomRight: [420, 60], duration: .6 };
+    if (calmQ.matches) map.fitBounds(b, { ...opts, animate: false });
+    else map.flyToBounds(b, opts);
   }
   address(z)
     .then(a => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = a || '（住所を特定できませんでした）'; })
@@ -257,35 +294,54 @@ function openDetail(z, fly = true) {
 }
 
 function closeDetail() {
+  const had = $('#detail').contains(document.activeElement);
   state.sel = null;
   highlight();
   $('#detail').classList.remove('open');
-  document.querySelectorAll('#list li.on').forEach(li => li.classList.remove('on'));
+  // 閉じた詳細は画面の外に出るだけなので、Tab で入れないようにする
+  $('#detail').inert = true;
+  markSelected(null);
+  if (had) restoreFocus(returnFocus);
+  returnFocus = returnId = null;
+}
+
+// 戻し先が見えていればそこへ、なければ検索欄へ
+function restoreFocus(el) {
+  if (el && !el.isConnected && returnId) el = [...document.querySelectorAll('#list li[data-id]')].find(li => li.dataset.id === returnId)?.firstElementChild;
+  (el && el.isConnected && el.offsetParent ? el : $('#q')).focus({ preventScroll: true });
 }
 
 /* ---------- 地名で移動 ---------- */
+function notice(text) {
+  $('#qnote').textContent = text;
+  $('#qnote').hidden = !text;
+}
+
+let searchSeq = 0; // 続けて検索したとき、古い結果で上書きしないため
 async function goPlace(q) {
   q = q.trim();
   if (!q) return;
-  const note = $('#qnote');
-  note.textContent = '探しています…';
-  note.hidden = false;
+  const seq = ++searchSeq;
+  const say = t => { if (seq === searchSeq) notice(t); };
+  say('探しています…');
   try {
-    const res = await fetch(GSI_SEARCH + encodeURIComponent(q));
+    const res = await fetch(GSI_SEARCH + encodeURIComponent(q), { signal: AbortSignal.timeout?.(10000) });
+    if (!res.ok) throw new Error(res.status);
     const hits = await res.json();
+    if (seq !== searchSeq) return;
     // 都内を優先（同名の地名が全国にあるため）
     const hit = hits.find(h => /東京都|大阪府/.test(h.properties.title)) || hits[0];
-    if (!hit) { note.textContent = `「${q}」は見つかりませんでした`; return; }
+    if (!hit) { say(`「${q}」は見つかりませんでした`); return; }
     const [lng, lat] = hit.geometry.coordinates;
     state.here = null;
     if (placeMark) map.removeLayer(placeMark);
     placeMark = L.circleMarker([lat, lng], { pane: 'marks', radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
       .bindTooltip(esc(hit.properties.title)).addTo(map);
-    map.setView([lat, lng], 16);
+    map.setView([lat, lng], 16, { animate: !calmQ.matches });
     if (listOpen()) renderList();
-    note.textContent = `${hit.properties.title} の近く`;
+    say(`${hit.properties.title} の近く`);
   } catch (e) {
-    note.textContent = '地名検索につながりませんでした';
+    say('地名検索につながりませんでした。通信状態を確かめて、もう一度お試しください');
   }
 }
 
@@ -352,7 +408,7 @@ function fillTowns() {
 function fitAll(pref) {
   const pts = shown.filter(z => !pref || z.pref === pref).flatMap(z => z.lines.flat());
   // 左上の検索・条件入力の下に隠れないよう、上側を広めにあける
-  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60] });
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60], animate: !calmQ.matches });
 }
 
 const narrow = () => window.innerWidth <= 760;
@@ -365,6 +421,8 @@ function openList() {
   $('#listpanel').hidden = false;
   document.body.classList.add('listing');
   renderList();
+  // 次の Tab で並べ方・一覧の行へ進めるよう、一覧の見出しへフォーカスを移す
+  $('#listpanel h2').focus({ preventScroll: true });
 }
 function closeList() {
   $('#listpanel').hidden = true;
@@ -428,22 +486,34 @@ function bind() {
     if (li) openDetail(zones.find(z => z.id === li.dataset.id));
   });
   $('#locate').addEventListener('click', () => {
-    if (!navigator.geolocation) return;
+    const btn = $('#locate');
+    if (btn.getAttribute('aria-busy') === 'true') return; // 探している途中の二度押し
+    if (!navigator.geolocation) { notice('このブラウザは現在地の取得に対応していません'); return; }
+    btn.setAttribute('aria-busy', 'true');
+    notice('現在地を探しています…');
+    const done = () => btn.removeAttribute('aria-busy');
     navigator.geolocation.getCurrentPosition(p => {
+      done();
+      notice('');
       state.here = [p.coords.latitude, p.coords.longitude];
       if (hereMark) map.removeLayer(hereMark);
       // 現在地はオレンジ（区間の線の緑・青と見分けるため）。線より上の層に置く
       hereMark = L.circleMarker(state.here, { pane: 'marks', radius: 9, color: '#fff', weight: 3, fillColor: '#F28C28', fillOpacity: 1 }).addTo(map);
-      map.setView(state.here, 17);
+      map.setView(state.here, 17, { animate: !calmQ.matches });
       if (listOpen()) renderList();
-    }, () => alert('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
+    }, err => {
+      done();
+      notice(err.code === 1
+        ? '位置情報の利用が許可されていません。ブラウザの設定で許可してください'
+        : '現在地を取得できませんでした。電波のよい場所で、もう一度お試しください');
+    }, { enableHighAccuracy: true, timeout: 10000 });
   });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!$('#menu').hidden) toggleMenu(false);
-    else if (!$('#filters').hidden) toggleFilters(false);
+    if (!$('#menu').hidden) { toggleMenu(false); $('#menuBtn').focus(); }
+    else if (!$('#filters').hidden) { toggleFilters(false); $('#ftoggle').focus(); }
     else if ($('#detail').classList.contains('open')) closeDetail();
-    else closeList();
+    else if (listOpen()) { closeList(); $('#menuBtn').focus(); }
   });
   // 「いま使える」は時間が進むと変わるので、1分ごとに見直す
   setInterval(() => { holidayNote(); if (state.at === 'now') applyFilters(); }, 60000);
@@ -457,6 +527,8 @@ async function boot() {
     zones = Zones.normalize(await res.json());
   } catch (e) {
     $('#empty').hidden = false;
+    $('#retry').addEventListener('click', () => location.reload());
+    $('#retry').focus();
     return;
   }
   try {
