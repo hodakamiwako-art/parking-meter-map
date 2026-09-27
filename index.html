@@ -39,6 +39,10 @@
         <button data-kind="meter" aria-pressed="false"><i class="k meter"></i>メーター</button>
         <button data-kind="ticket" aria-pressed="false"><i class="k ticket"></i>チケット</button>
       </div>
+      <div class="selrow" id="arearow" hidden>
+        <select id="ward" aria-label="エリア"></select>
+        <select id="town" aria-label="町名" disabled></select>
+      </div>
       <div class="selrow">
         <select id="limit" aria-label="制限時間">
           <option value="">制限時間：すべて</option>
@@ -53,7 +57,7 @@
       </div>
       <label class="chk"><input type="checkbox" id="nowonly"><span>いま利用時間内だけ<small>（祝日は判定しません）</small></span></label>
     </div>
-    <div class="tally"><span><b id="n">0</b> 区間</span><span class="sortnote" id="sortnote">地図の中心から近い順</span></div>
+    <div class="tally"><span><b id="n">0</b> 区間</span><span class="sortctl"><span class="sortnote" id="sortnote"></span><select id="sort" aria-label="並べ方"><option value="near">近い順</option><option value="area">エリアごと</option></select></span></div>
     <ul class="list" id="list"></ul>
   </aside>
 

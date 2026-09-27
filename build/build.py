@@ -2,12 +2,17 @@
 
     python3 build/build.py            # build/source/ にある元データから作る
     python3 build/build.py --fetch    # 先に parking-meter.jp から最新版を取り直す
+    python3 build/build.py --geocode  # 住所がまだない区間を国土地理院で逆引きしてから作る
 
 線の形は KML（parkingmeter.kml.zip）、属性は CSV（parkingmeter_attr.csv）から取る。
 CSV のほうが更新が新しいので、同じ識別idでは CSV の値を優先する。
 （GeoJSON 版の zip はダウンロードページにあるが、2026年9月時点でリンク切れ）
+
+元データには区間名も住所もないので、線のまん中の点を国土地理院の逆引きにかけ、
+「区市町村」「町名」「町丁目」を属性に足す。結果は build/source/geocode.json に貯めておき、
+新しく増えた区間だけ問い合わせる。
 """
-import csv, io, json, sys, urllib.request, zipfile
+import csv, io, json, re, sys, time, urllib.request, zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -17,6 +22,20 @@ OUT = ROOT / 'data' / 'zones.geojson'
 BASE = 'https://parking-meter.jp/'
 FILES = ['parkingmeter.kml.zip', 'parkingmeter_attr.csv']
 NS = {'k': 'http://www.opengis.net/kml/2.2'}
+GEOCODE = SRC / 'geocode.json'
+REVERSE = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat={lat}&lon={lng}'
+# 逆引きは市区町村コードで返るので、都内の区市の名前を引く
+MUNI = {
+    13101: '千代田区', 13102: '中央区', 13103: '港区', 13104: '新宿区', 13105: '文京区', 13106: '台東区',
+    13107: '墨田区', 13108: '江東区', 13109: '品川区', 13110: '目黒区', 13111: '大田区', 13112: '世田谷区',
+    13113: '渋谷区', 13114: '中野区', 13115: '杉並区', 13116: '豊島区', 13117: '北区', 13118: '荒川区',
+    13119: '板橋区', 13120: '練馬区', 13121: '足立区', 13122: '葛飾区', 13123: '江戸川区',
+    13201: '八王子市', 13202: '立川市', 13203: '武蔵野市', 13204: '三鷹市', 13205: '青梅市', 13206: '府中市',
+    13207: '昭島市', 13208: '調布市', 13209: '町田市', 13210: '小金井市', 13211: '小平市', 13212: '日野市',
+    13213: '東村山市', 13214: '国分寺市', 13215: '国立市', 13218: '福生市', 13219: '狛江市', 13220: '東大和市',
+    13221: '清瀬市', 13222: '東久留米市', 13223: '武蔵村山市', 13224: '多摩市', 13225: '稲城市', 13227: '羽村市',
+    13228: 'あきる野市', 13229: '西東京市',
+}
 INTS = {'識別id', '制限時間', '手数料', '普通車', '貨物用有り', '二輪車', '標章車専用有り'}
 
 
@@ -25,6 +44,32 @@ def fetch():
         with urllib.request.urlopen(BASE + f) as r:
             (SRC / f).write_bytes(r.read())
         print('fetched', f)
+
+
+def midpoint(lines):
+    """線のまん中あたりの点 [lng, lat]（zones.js の midpoint と同じ選び方）"""
+    longest = max(lines, key=len)
+    return longest[len(longest) // 2]
+
+
+def town(chome):
+    """「銀座四丁目」→「銀座」。丁目がなければそのまま"""
+    return re.sub(r'[一二三四五六七八九十]+丁目$', '', chome)
+
+
+def geocode(feats):
+    cache = json.loads(GEOCODE.read_text(encoding='utf-8')) if GEOCODE.exists() else {}
+    todo = [f for f in feats if str(f['id']) not in cache]
+    for i, f in enumerate(todo, 1):
+        lng, lat = midpoint(f['_lines'])
+        with urllib.request.urlopen(REVERSE.format(lat=lat, lng=lng), timeout=20) as r:
+            res = json.load(r).get('results') or {}
+        cache[str(f['id'])] = {'muniCd': res.get('muniCd', ''), 'lv01Nm': res.get('lv01Nm', '')}
+        if i % 50 == 0 or i == len(todo):
+            print(f'geocoded {i}/{len(todo)}')
+            GEOCODE.write_text(json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True), encoding='utf-8')
+        time.sleep(0.2)  # 国土地理院に負担をかけない
+    return cache
 
 
 def value(k, v):
@@ -57,14 +102,25 @@ def main():
             continue
         geom = ({'type': 'LineString', 'coordinates': lines[0]} if len(lines) == 1
                 else {'type': 'MultiLineString', 'coordinates': lines})
-        feats.append({'type': 'Feature', 'id': props['識別id'], 'properties': props, 'geometry': geom})
+        feats.append({'type': 'Feature', 'id': props['識別id'], 'properties': props, 'geometry': geom, '_lines': lines})
 
     feats.sort(key=lambda f: f['id'])
+    cache = geocode(feats) if '--geocode' in sys.argv else (
+        json.loads(GEOCODE.read_text(encoding='utf-8')) if GEOCODE.exists() else {})
+    for f in feats:
+        g = cache.get(str(f['id']))
+        if g:
+            chome = '' if g['lv01Nm'] in ('', '－') else g['lv01Nm']
+            f['properties'].update({'区市町村': MUNI.get(int(g['muniCd'] or 0), ''), '町名': town(chome), '町丁目': chome})
+        del f['_lines']
     OUT.parent.mkdir(exist_ok=True)
     OUT.write_text(json.dumps({'type': 'FeatureCollection', 'features': feats},
                               ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     missing = set(attrs) - {str(f['id']) for f in feats}
     print(f'{len(feats)} zones -> {OUT.relative_to(ROOT)}' + (f' ({len(missing)} ids in CSV without geometry)' if missing else ''))
+    noaddr = sum(1 for f in feats if not f['properties'].get('区市町村'))
+    if noaddr:
+        print(f'{noaddr} zones without address (run with --geocode)')
 
 
 if __name__ == '__main__':

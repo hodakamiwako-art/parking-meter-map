@@ -35,7 +35,7 @@ const MUNI = {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { kind: '', limit: '', vehicle: '', now: false, here: null, sel: null };
+const state = { kind: '', ward: '', town: '', limit: '', vehicle: '', now: false, sort: 'near', here: null, sel: null };
 let zones = [];
 let shown = [];
 let map, tiles, layer, hereMark, placeMark;
@@ -99,7 +99,9 @@ function highlight() {
 const KIND = { meter: 'パーキング・メーター', ticket: 'パーキング・チケット' };
 const fmtLimit = z => (z.limitMin == null ? '' : z.limitMin >= 60 && z.limitMin % 60 === 0 ? `${z.limitMin / 60}時間` : `${z.limitMin}分`);
 const fmtFee = z => (z.feeYen == null ? '' : `${z.feeYen.toLocaleString()}円`);
-const title = z => [fmtLimit(z), fmtFee(z)].filter(Boolean).join('・') || KIND[z.kind];
+const terms = z => [fmtLimit(z), fmtFee(z)].filter(Boolean).join('・') || KIND[z.kind];
+// 住所がわかっていれば住所を、なければ条件を見出しにする
+const title = z => z.addr || terms(z);
 // 一覧では「日曜・休日を除く」を「日・休日は除く」と短くし、全区間共通の正月の除外は省く
 const shortRule = r => (/^1月1日/.test(r) ? '' : r.replace(/曜/g, '').replace(/、/g, '・').replace(/を除く$/, 'は除く'));
 const vehicles = z => [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・');
@@ -109,6 +111,8 @@ function applyFilters() {
   const now = new Date();
   shown = zones.filter(z => {
     if (state.kind && z.kind !== state.kind) return false;
+    if (state.ward && z.ward !== state.ward) return false;
+    if (state.town && z.town !== state.town) return false;
     if (state.limit) {
       const lim = +state.limit;
       if (z.limitMin == null || z.limitMin > lim) return false;
@@ -131,30 +135,47 @@ function meters(a, b) {
 }
 const fmtDist = m => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`);
 
-function renderList() {
-  const origin = state.here || [map.getCenter().lat, map.getCenter().lng];
-  $('#sortnote').textContent = state.here ? '現在地から近い順' : '地図の中心から近い順';
-  const rows = shown
-    .map(z => ({ z, d: meters(origin, z.center) }))
-    .sort((a, b) => a.d - b.d)
-    .slice(0, LIST_MAX);
-  $('#list').innerHTML = rows.map(({ z, d }) => {
-    const rule = z.rules.map(shortRule).filter(Boolean)[0];
-    const tags = [z.truck && '貨物枠', z.bike && '二輪', z.permitOnly && '標章車専用'].filter(Boolean);
-    return `
+function listItem(z, d) {
+  const rule = z.rules.map(shortRule).filter(Boolean)[0];
+  const tags = [z.truck && '貨物枠', z.bike && '二輪', z.permitOnly && '標章車専用'].filter(Boolean);
+  const head = z.addr ? `${z.ward === state.ward ? '' : z.ward}${z.addr.slice(z.ward.length)}` : terms(z);
+  const meta = [z.addr && terms(z), z.hours, rule].filter(Boolean);
+  return `
     <li data-id="${esc(z.id)}" class="${z.id === state.sel ? 'on' : ''}">
       <span class="k ${z.kind}"></span>
       <div class="body">
-        <div class="nm">${esc(title(z))}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
-        <div class="meta"><span>${esc(z.hours)}</span>${rule ? `<span>${esc(rule)}</span>` : ''}</div>
+        <div class="nm">${esc(head)}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+        <div class="meta">${meta.map(m => `<span>${esc(m)}</span>`).join('')}</div>
       </div>
       <span class="dist">${fmtDist(d)}</span>
     </li>`;
-  }).join('') || '<li class="none">条件に合う区間はありません</li>';
+}
+
+function renderList() {
+  const origin = state.here || [map.getCenter().lat, map.getCenter().lng];
+  const byArea = state.sort === 'area';
+  $('#sortnote').textContent = byArea ? '' : state.here ? '現在地から' : '地図の中心から';
+  let rows = shown.map(z => ({ z, d: meters(origin, z.center) }));
+  if (!byArea) {
+    rows = rows.sort((a, b) => a.d - b.d).slice(0, LIST_MAX);
+    $('#list').innerHTML = rows.map(({ z, d }) => listItem(z, d)).join('') || '<li class="none">条件に合う区間はありません</li>';
+    return;
+  }
+  // エリアごと：区市町村（区間の多い順）→ 町名（五十音順）→ 近い順
+  const wardN = count(shown, 'ward');
+  const key = z => (state.ward ? z.town : z.ward) || '住所未取得';
+  rows.sort((a, b) => (state.ward ? 0 : wardN[b.z.ward] - wardN[a.z.ward])
+    || key(a.z).localeCompare(key(b.z), 'ja') || a.d - b.d);
+  const groups = new Map();
+  rows.forEach(r => { const k = key(r.z); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+  $('#list').innerHTML = [...groups].map(([k, rs]) => `
+    <li class="group" data-group="${esc(k)}"><span>${esc(state.ward ? `${state.ward} ${k}` : k)}</span><b>${rs.length}</b></li>
+    ${rs.map(({ z, d }) => listItem(z, d)).join('')}`).join('') || '<li class="none">条件に合う区間はありません</li>';
 }
 
 /* ---------- 住所の逆引き（詳細を開いたときだけ） ---------- */
 async function address(z) {
+  if (z.addr) return z.addr;
   if (addrCache.has(z.id)) return addrCache.get(z.id);
   const [lat, lng] = z.center;
   const res = await fetch(`${GSI_REVERSE}?lat=${lat}&lon=${lng}`);
@@ -181,9 +202,9 @@ function openDetail(z, fly = true) {
   $('#detail').innerHTML = `
     <button class="close" aria-label="閉じる">×</button>
     <div class="badge ${z.kind}">${KIND[z.kind]}</div>
-    <h2>${esc(title(z))}</h2>
+    <h2>${esc(terms(z))}</h2>
     <dl>
-      ${row('場所', '住所を調べています…', 'addr')}
+      ${row('場所', z.addr || '住所を調べています…', 'addr')}
       ${row('制限時間', fmtLimit(z))}
       ${row('料金', fmtFee(z) && `${fmtFee(z)}（${fmtLimit(z) || '1回'}）`)}
       ${row('利用時間', z.hours)}
@@ -238,6 +259,30 @@ async function goPlace(q) {
   }
 }
 
+/* ---------- エリアの選択肢 ---------- */
+function count(list, k) {
+  const n = {};
+  list.forEach(z => { if (z[k]) n[z[k]] = (n[z[k]] || 0) + 1; });
+  return n;
+}
+
+function fillWards() {
+  const n = count(zones, 'ward');
+  const wards = Object.keys(n).sort((a, b) => n[b] - n[a]);
+  $('#ward').innerHTML = '<option value="">エリア：すべて</option>' +
+    wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('');
+  $('#arearow').hidden = !wards.length;
+  fillTowns();
+}
+
+function fillTowns() {
+  const n = count(zones.filter(z => z.ward === state.ward), 'town');
+  const towns = Object.keys(n).sort((a, b) => a.localeCompare(b, 'ja'));
+  $('#town').innerHTML = '<option value="">町名：すべて</option>' +
+    towns.map(t => `<option value="${esc(t)}">${esc(t)}（${n[t]}）</option>`).join('');
+  $('#town').disabled = !state.ward;
+}
+
 /* ---------- 画面の組み立て ---------- */
 function fitAll() {
   const pts = shown.flatMap(z => z.lines.flat());
@@ -258,6 +303,15 @@ function bind() {
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
     applyFilters();
   }));
+  $('#ward').addEventListener('change', e => {
+    state.ward = e.target.value;
+    state.town = '';
+    fillTowns();
+    applyFilters();
+    fitAll();
+  });
+  $('#town').addEventListener('change', e => { state.town = e.target.value; applyFilters(); fitAll(); });
+  $('#sort').addEventListener('change', e => { state.sort = e.target.value; renderList(); });
   $('#limit').addEventListener('change', e => { state.limit = e.target.value; applyFilters(); });
   $('#vehicle').addEventListener('change', e => { state.vehicle = e.target.value; applyFilters(); });
   $('#nowonly').addEventListener('change', e => { state.now = e.target.checked; applyFilters(); });
@@ -294,6 +348,7 @@ async function boot() {
     $('#empty').hidden = false;
     return;
   }
+  fillWards();
   applyFilters();
   fitAll();
 }

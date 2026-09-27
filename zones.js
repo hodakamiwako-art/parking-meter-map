@@ -1,6 +1,7 @@
 /* data/zones.geojson（build/build.py が作る）を、アプリで扱う形にそろえる。
    属性は警視庁オープンデータの項目名そのまま：
-   識別id・利用時間・制限時間・手数料・制限事項1・制限事項2・種別・普通車・貨物用有り・二輪車・標章車専用有り */
+   識別id・利用時間・制限時間・手数料・制限事項1・制限事項2・種別・普通車・貨物用有り・二輪車・標章車専用有り
+   に、build.py が逆引きで足した 区市町村・町名・町丁目 が加わる。 */
 (function () {
   const z2h = s => String(s ?? '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
   const num = v => (v === '' || v == null || !Number.isFinite(+v) ? null : +v);
@@ -46,6 +47,9 @@
         truck: !!p['貨物用有り'],
         bike: !!p['二輪車'],
         permitOnly: !!p['標章車専用有り'],
+        ward: p['区市町村'] || '',
+        town: p['町名'] || '',
+        addr: (p['区市町村'] || '') + (p['町丁目'] || ''),
         lines: geo,
         center: midpoint(geo),
         raw: p,
