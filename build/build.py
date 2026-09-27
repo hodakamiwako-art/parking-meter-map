@@ -38,7 +38,15 @@ MUNI = {
     13213: '東村山市', 13214: '国分寺市', 13215: '国立市', 13218: '福生市', 13219: '狛江市', 13220: '東大和市',
     13221: '清瀬市', 13222: '東久留米市', 13223: '武蔵村山市', 13224: '多摩市', 13225: '稲城市', 13227: '羽村市',
     13228: 'あきる野市', 13229: '西東京市',
+    # 大阪（東京の中央区・北区と区別するため「大阪市」を付ける）
+    27102: '大阪市都島区', 27103: '大阪市福島区', 27104: '大阪市此花区', 27106: '大阪市西区', 27107: '大阪市港区',
+    27108: '大阪市大正区', 27109: '大阪市天王寺区', 27111: '大阪市浪速区', 27113: '大阪市西淀川区', 27114: '大阪市東淀川区',
+    27115: '大阪市東成区', 27116: '大阪市生野区', 27117: '大阪市旭区', 27118: '大阪市城東区', 27119: '大阪市阿倍野区',
+    27120: '大阪市住吉区', 27121: '大阪市東住吉区', 27122: '大阪市西成区', 27123: '大阪市淀川区', 27124: '大阪市鶴見区',
+    27125: '大阪市住之江区', 27126: '大阪市平野区', 27127: '大阪市北区', 27128: '大阪市中央区',
+    27205: '吹田市', 27227: '東大阪市',
 }
+OSAKA = SRC / 'osaka'
 INTS = {'識別id', '制限時間', '手数料', '普通車', '貨物用有り', '二輪車', '標章車専用有り'}
 
 
@@ -99,6 +107,36 @@ def value(k, v):
     return v
 
 
+def osaka_features():
+    """build/osaka.py が作った表（rows.json）と線（geometry.json）を、東京と同じ属性名の区間にする"""
+    rows_f, geo_f = OSAKA / 'rows.json', OSAKA / 'geometry.json'
+    if not (rows_f.exists() and geo_f.exists()):
+        return []
+    geo = json.loads(geo_f.read_text(encoding='utf-8'))
+    feats = []
+    for r in json.loads(rows_f.read_text(encoding='utf-8')):
+        line = (geo.get(r['id']) or {}).get('line')
+        if not line:
+            print('osaka: no line for', r['id'], r['route'], r['section'])
+            continue
+        h = re.match(r'(\d+)\s*-\s*(\d+)', r['hours'])
+        props = {
+            '識別id': r['id'], '都道府県': '大阪府',
+            '利用時間': f'{int(h.group(1)):02d}:00-{int(h.group(2)):02d}:00' if h else r['hours'],
+            # 大阪府警の案内：手数料300円、同じ場所に続けて1時間まで
+            '制限時間': 60, '手数料': 300,
+            '制限事項1': '日曜・休日を除く' if r['weekday_only'] else '', '制限事項2': '',
+            '種別': 'パーキング・チケット', '普通車': 1,
+            '貨物用有り': int(bool(r['truck_spaces'] or r['truck_mark'])), '二輪車': 0, '標章車専用有り': 0,
+            '路線名': r['route'], '設置区間': r['section'], '駐車枠数': r['spaces'], '貨物車枠数': r['truck_spaces'],
+            '出典': f"大阪府警察 {r['station']}（{r['asof']}）",
+        }
+        coords = [[round(x, 6), round(y, 6)] for x, y in line]
+        feats.append({'type': 'Feature', 'id': r['id'], 'properties': props,
+                      'geometry': {'type': 'LineString', 'coordinates': coords}, '_lines': [coords]})
+    return feats
+
+
 def main():
     if '--fetch' in sys.argv:
         fetch()
@@ -127,6 +165,9 @@ def main():
         feats.append({'type': 'Feature', 'id': props['識別id'], 'properties': props, 'geometry': geom, '_lines': lines})
 
     feats.sort(key=lambda f: f['id'])
+    for f in feats:
+        f['properties']['都道府県'] = '東京都'
+    feats += osaka_features()
     cache = geocode(feats) if '--geocode' in sys.argv else (
         json.loads(GEOCODE.read_text(encoding='utf-8')) if GEOCODE.exists() else {})
     for f in feats:

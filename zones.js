@@ -1,7 +1,8 @@
 /* data/zones.geojson（build/build.py が作る）を、アプリで扱う形にそろえる。
    属性は警視庁オープンデータの項目名そのまま：
    識別id・利用時間・制限時間・手数料・制限事項1・制限事項2・種別・普通車・貨物用有り・二輪車・標章車専用有り
-   に、build.py が逆引きで足した 区市町村・町名・町丁目 が加わる。 */
+   に、build.py が逆引きで足した 都道府県・区市町村・町名・町丁目 が加わる。
+   大阪の区間（build/osaka.py）は同じ項目名に加えて 路線名・設置区間・駐車枠数・貨物車枠数・出典 を持つ。 */
 (function () {
   const z2h = s => String(s ?? '').replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
   const num = v => (v === '' || v == null || !Number.isFinite(+v) ? null : +v);
@@ -49,9 +50,16 @@
         truck: !!p['貨物用有り'],
         bike: !!p['二輪車'],
         permitOnly: !!p['標章車専用有り'],
+        pref: p['都道府県'] || '東京都',
         ward: p['区市町村'] || '',
         town: p['町名'] || '',
         addr: (p['区市町村'] || '') + (p['町丁目'] || ''),
+        // 大阪府警の表から来る区間だけにある項目
+        route: p['路線名'] || '',
+        section: p['設置区間'] || '',
+        spaces: num(p['駐車枠数']),
+        truckSpaces: num(p['貨物車枠数']),
+        source: p['出典'] || '',
         lines: geo,
         center: midpoint(geo),
         raw: p,

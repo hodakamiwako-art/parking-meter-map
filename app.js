@@ -14,7 +14,8 @@ const BASE = CARTO_KEY ? {
   attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   subdomains: 'abc', maxNativeZoom: 19,
 };
-const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）';
+const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）・<a href="https://www.police.pref.osaka.lg.jp/kotsu/tyusya/1/1/index.html" target="_blank" rel="noopener">大阪府警察</a>（線は OpenStreetMap から作成）';
+const PREFS = ['東京都', '大阪府']; // エリアの選択肢と「◯◯を表示」の並び
 
 // 国土地理院の地名検索・住所の逆引き（鍵不要）
 const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';
@@ -56,7 +57,7 @@ function setTiles() {
 }
 
 function initMap() {
-  map = L.map('map', { center: TOKYO, zoom: 13, zoomControl: false, minZoom: 9, maxZoom: 21, preferCanvas: true });
+  map = L.map('map', { center: TOKYO, zoom: 13, zoomControl: false, minZoom: 6, maxZoom: 21, preferCanvas: true });
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.addAttribution(SRC_ATTR);
   setTiles();
@@ -219,6 +220,9 @@ function openDetail(z, fly = true) {
     <h2>${esc(terms(z))}</h2>
     <dl>
       ${row('場所', z.addr || '住所を調べています…', 'addr')}
+      ${row('路線', z.route)}
+      ${row('区間', z.section)}
+      ${row('枠数', z.spaces != null ? `${z.spaces}台` + (z.truckSpaces ? `（うち貨物車 ${z.truckSpaces}台）` : '') : '')}
       ${row('制限時間', fmtLimit(z))}
       ${row('料金', fmtFee(z) && `${fmtFee(z)}（${fmtLimit(z) || '1回'}）`)}
       ${row('利用時間', z.hours)}
@@ -226,7 +230,8 @@ function openDetail(z, fly = true) {
       ${row('いま', (open ? '利用時間内' : '利用時間外') + (holiday ? `（今日は${holiday}）` : holidayKnown() ? '' : '（祝日は判定していません）'))}
       ${row('車種', vehicles(z))}
       ${z.permitOnly ? row('注意', '標章車（障害者等用）専用の枠があります') : ''}
-      ${row('区間番号', z.id)}
+      ${z.pref === '東京都' ? row('区間番号', z.id) : ''}
+      ${row('出典', z.source)}
     </dl>
     <div class="acts">
       <a class="btn primary" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップで経路</a>
@@ -267,7 +272,7 @@ async function goPlace(q) {
     const res = await fetch(GSI_SEARCH + encodeURIComponent(q));
     const hits = await res.json();
     // 都内を優先（同名の地名が全国にあるため）
-    const hit = hits.find(h => /東京都/.test(h.properties.title)) || hits[0];
+    const hit = hits.find(h => /東京都|大阪府/.test(h.properties.title)) || hits[0];
     if (!hit) { note.textContent = `「${q}」は見つかりませんでした`; return; }
     const [lng, lat] = hit.geometry.coordinates;
     state.here = null;
@@ -312,9 +317,12 @@ function count(list, k) {
 
 function fillWards() {
   const n = count(zones, 'ward');
-  const wards = Object.keys(n).sort((a, b) => n[b] - n[a]);
-  $('#ward').innerHTML = '<option value="">すべて</option>' +
-    wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('');
+  // 都道府県ごとにまとめ、その中は区間の多い順
+  $('#ward').innerHTML = '<option value="">すべて</option>' + PREFS.map(pref => {
+    const wards = [...new Set(zones.filter(z => z.pref === pref && z.ward).map(z => z.ward))].sort((a, b) => n[b] - n[a]);
+    return wards.length ? `<optgroup label="${pref}">${wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  const wards = Object.keys(n);
   $('#ward').closest('label').hidden = $('#town').closest('label').hidden = !wards.length;
   fillTowns();
 }
@@ -328,8 +336,8 @@ function fillTowns() {
 }
 
 /* ---------- 画面の組み立て ---------- */
-function fitAll() {
-  const pts = shown.flatMap(z => z.lines.flat());
+function fitAll(pref) {
+  const pts = shown.filter(z => !pref || z.pref === pref).flatMap(z => z.lines.flat());
   // 左上の検索・条件入力の下に隠れないよう、上側を広めにあける
   if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60] });
 }
@@ -374,6 +382,9 @@ function bind() {
   document.addEventListener('click', e => { if (!$('#menu').hidden && !e.target.closest('#menu')) toggleMenu(false); });
   $('#menuList').addEventListener('click', openList);
   $('#menuFit').addEventListener('click', () => { toggleMenu(false); state.here = null; fitAll(); });
+  document.querySelectorAll('[data-pref]').forEach(b => b.addEventListener('click', () => {
+    toggleMenu(false); state.here = null; fitAll(b.dataset.pref);
+  }));
   $('#listClose').addEventListener('click', closeList);
   $('#ftoggle').addEventListener('click', () => toggleFilters());
   $('#fdone').addEventListener('click', () => toggleFilters(false));
@@ -434,7 +445,7 @@ async function boot() {
   fillWards();
   fillHours();
   applyFilters();
-  fitAll();
+  fitAll('東京都'); // 最初は区間の多い東京を見せる。大阪はメニューの「大阪を表示」から
 }
 
 boot();

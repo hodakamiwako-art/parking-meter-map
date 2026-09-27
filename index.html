@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>パーキング・メーター・マップ</title>
-<meta name="description" content="東京都内のパーキング・メーター／パーキング・チケット752区間を、現在地から近い順に地図で探せます。警視庁の時間制限駐車区間オープンデータを使っています。">
+<meta name="description" content="東京と大阪のパーキング・メーター／パーキング・チケットの設置区間を地図で探せます。警視庁の時間制限駐車区間オープンデータと大阪府警察の設置状況を使っています。">
 <meta name="theme-color" content="#1E4E8C">
 <meta name="apple-mobile-web-app-title" content="パーキング・メーター・マップ">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -17,13 +17,15 @@
 <body>
 
 <header class="mast">
-  <h1><span class="sub">TOKYO · ON-STREET PARKING</span>パーキング・メーター・マップ</h1>
+  <h1><span class="sub">TOKYO · OSAKA · ON-STREET PARKING</span>パーキング・メーター・マップ</h1>
   <span class="spacer"></span>
   <button class="menubtn" id="menuBtn" aria-label="メニュー" aria-expanded="false" aria-controls="menu">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <nav class="menu" id="menu" hidden>
     <button id="menuList"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>一覧で見る</button>
+    <button data-pref="東京都"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>東京を表示</button>
+    <button data-pref="大阪府"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>大阪を表示</button>
     <button id="menuFit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体を表示</button>
     <a href="https://parking-meter.jp/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>警視庁の地図</a>
   </nav>
@@ -47,7 +49,7 @@
     </div>
 
     <div class="filters" id="filters" hidden>
-      <label><span>区</span><select id="ward"></select></label>
+      <label><span>区・市</span><select id="ward"></select></label>
       <label><span>町名</span><select id="town" disabled></select></label>
       <label><span>曜日</span>
         <select id="days">
@@ -118,7 +120,7 @@
 
 <script src="config.js?v=64f92221"></script>
 <script src="vendor/leaflet.js?v=5a640ff8"></script>
-<script src="zones.js?v=7d711c5c"></script>
-<script src="app.js?v=ddb52469"></script>
+<script src="zones.js?v=0a7052e9"></script>
+<script src="app.js?v=7a66547f"></script>
 </body>
 </html>
