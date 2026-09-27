@@ -14,8 +14,8 @@ const BASE = CARTO_KEY ? {
   attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   subdomains: 'abc', maxNativeZoom: 19,
 };
-const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）・<a href="https://www.police.pref.osaka.lg.jp/kotsu/tyusya/1/1/index.html" target="_blank" rel="noopener">大阪府警察</a>（線は OpenStreetMap から作成）';
-const PREFS = ['東京都', '大阪府']; // エリアの選択肢と「◯◯を表示」の並び
+const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）・<a href="https://www.police.pref.osaka.lg.jp/kotsu/tyusya/1/1/index.html" target="_blank" rel="noopener">大阪府警察</a>・北海道警察・京都府警察（線は OpenStreetMap から作成）';
+const PREFS = ['北海道', '東京都', '京都府', '大阪府']; // エリアの選択肢と「◯◯を表示」の並び
 
 // 国土地理院の地名検索・住所の逆引き（鍵不要）
 const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';
@@ -115,8 +115,9 @@ const terms = z => [fmtLimit(z), fmtFee(z)].filter(Boolean).join('・') || KIND[
 // 住所がわかっていれば住所を、なければ条件を見出しにする
 const title = z => z.addr || terms(z);
 // 一覧では「日曜・休日を除く」を「日・休日は除く」と短くし、全区間共通の正月の除外は省く
-const shortRule = r => (/^1月1日/.test(r) ? '' : r.replace(/曜/g, '').replace(/、/g, '・').replace(/を除く$/, 'は除く'));
-const vehicles = z => [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・');
+const shortRule = r => (/^1月1日/.test(r) ? '' : /^12月1日/.test(r) ? '冬期休止' : r.replace(/曜/g, '').replace(/、/g, '・').replace(/を除く$/, 'は除く'));
+const vehicles = z => (z.truckOnly ? '貨物車専用（積載量5トン未満）'
+  : [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・'));
 
 /* ---------- 絞り込みと一覧 ---------- */
 function applyFilters() {
@@ -155,7 +156,7 @@ const fmtDist = m => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).t
 
 function listItem(z, d) {
   const rule = z.rules.map(shortRule).filter(Boolean)[0];
-  const tags = [z.truck && '貨物枠', z.bike && '二輪', z.permitOnly && '標章車専用'].filter(Boolean);
+  const tags = [z.truckOnly ? '貨物車専用' : z.truck && '貨物枠', z.bike && '二輪', z.permitOnly && '標章車専用'].filter(Boolean);
   const head = z.addr ? `${z.ward === state.ward ? '' : z.ward}${z.addr.slice(z.ward.length)}` : terms(z);
   const meta = [z.addr && terms(z), z.hours, rule].filter(Boolean);
   return `
@@ -310,6 +311,8 @@ function fillHours() {
 }
 
 /* ---------- エリアの選択肢 ---------- */
+// 画面での呼び名：東京都→東京、大阪府→大阪、京都府→京都、北海道→札幌（区間は札幌だけのため）
+const prefName = p => ({ 北海道: '札幌' }[p] || p.replace(/[都府]$/, ''));
 function count(list, k) {
   const n = {};
   list.forEach(z => { if (z[k]) n[z[k]] = (n[z[k]] || 0) + 1; });
@@ -318,8 +321,11 @@ function count(list, k) {
 
 function fillPrefs() {
   const n = count(zones, 'pref');
+  // メニューの「◯◯を表示」も、データのある都道府県だけ出す
+  const pin = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+  $('#menuPrefs').innerHTML = PREFS.filter(p => n[p]).map(p => `<button data-pref="${p}">${pin}${prefName(p)}を表示</button>`).join('');
   $('#pref').innerHTML = '<option value="">すべて</option>' +
-    PREFS.filter(p => n[p]).map(p => `<option value="${p}">${p.replace(/[都府]$/, '')}（${n[p]}）</option>`).join('');
+    PREFS.filter(p => n[p]).map(p => `<option value="${p}">${prefName(p)}（${n[p]}）</option>`).join('');
   $('#ward').closest('label').hidden = $('#town').closest('label').hidden = !zones.some(z => z.ward);
   fillWards();
 }
@@ -389,9 +395,10 @@ function bind() {
   document.addEventListener('click', e => { if (!$('#menu').hidden && !e.target.closest('#menu')) toggleMenu(false); });
   $('#menuList').addEventListener('click', openList);
   $('#menuFit').addEventListener('click', () => { toggleMenu(false); state.here = null; fitAll(); });
-  document.querySelectorAll('[data-pref]').forEach(b => b.addEventListener('click', () => {
-    toggleMenu(false); state.here = null; fitAll(b.dataset.pref);
-  }));
+  $('#menuPrefs').addEventListener('click', e => {
+    const b = e.target.closest('[data-pref]');
+    if (b) { toggleMenu(false); state.here = null; fitAll(b.dataset.pref); }
+  });
   $('#listClose').addEventListener('click', closeList);
   $('#ftoggle').addEventListener('click', () => toggleFilters());
   $('#fdone').addEventListener('click', () => toggleFilters(false));

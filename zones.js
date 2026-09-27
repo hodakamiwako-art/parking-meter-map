@@ -50,6 +50,9 @@
         truck: !!p['貨物用有り'],
         bike: !!p['二輪車'],
         permitOnly: !!p['標章車専用有り'],
+        truckOnly: !!p['貨物車専用'],
+        // 運用する月（札幌の「4-11」＝4月〜11月。冬期は休止）
+        months: p['運用月'] ? p['運用月'].split('-').map(Number) : null,
         pref: p['都道府県'] || '東京都',
         ward: p['区市町村'] || '',
         town: p['町名'] || '',
@@ -78,6 +81,10 @@
     if (dow === 6 && /土/.test(rules)) return false;
     if (z.days !== 'daily' && holidays[ymd(now)]) return false;
     if (now.getMonth() === 0 && now.getDate() <= 3 && /1月1日/.test(rules)) return false;
+    if (z.months) {
+      const m = now.getMonth() + 1;
+      if (m < z.months[0] || m > z.months[1]) return false;
+    }
     return usableAt(z, now.getHours() * 60 + now.getMinutes());
   }
 

@@ -45,6 +45,12 @@ MUNI = {
     27120: '大阪市住吉区', 27121: '大阪市東住吉区', 27122: '大阪市西成区', 27123: '大阪市淀川区', 27124: '大阪市鶴見区',
     27125: '大阪市住之江区', 27126: '大阪市平野区', 27127: '大阪市北区', 27128: '大阪市中央区',
     27205: '吹田市', 27227: '東大阪市',
+    # 札幌・京都（区名がほかの市と重なるので市名を付ける）
+    1101: '札幌市中央区', 1102: '札幌市北区', 1103: '札幌市東区', 1104: '札幌市白石区', 1105: '札幌市豊平区',
+    1106: '札幌市南区', 1107: '札幌市西区', 1108: '札幌市厚別区', 1109: '札幌市手稲区', 1110: '札幌市清田区',
+    26101: '京都市北区', 26102: '京都市上京区', 26103: '京都市左京区', 26104: '京都市中京区', 26105: '京都市東山区',
+    26106: '京都市下京区', 26107: '京都市南区', 26108: '京都市右京区', 26109: '京都市伏見区', 26110: '京都市山科区',
+    26111: '京都市西京区',
 }
 OSAKA = SRC / 'osaka'
 INTS = {'識別id', '制限時間', '手数料', '普通車', '貨物用有り', '二輪車', '標章車専用有り'}
@@ -137,6 +143,50 @@ def osaka_features():
     return feats
 
 
+def landmark_features():
+    """build/landmarks.py の地域（札幌・京都）を、東京と同じ属性名の区間にする"""
+    sys.path.insert(0, str(ROOT / 'build'))
+    from landmarks import REGIONS
+    feats = []
+    for region, cfg in REGIONS.items():
+        geo_f = SRC / region / 'geometry.json'
+        if not geo_f.exists():
+            continue
+        geo = json.loads(geo_f.read_text(encoding='utf-8'))
+        for it in cfg['items']:
+            line = (geo.get(it['id']) or {}).get('line')
+            if not line or len(line) < 2:
+                print(f'{region}: no line for', it['id'])
+                continue
+            props = {'識別id': it['id'], '都道府県': cfg['pref'], **cfg['common'],
+                     '普通車': 0 if it.get('truck_only') else 1, '貨物用有り': int(bool(it.get('truck_only'))),
+                     '二輪車': 0, '標章車専用有り': 0, '出典': cfg['source']}
+            props.setdefault('種別', it.get('種別'))
+            if it.get('種別'):
+                props['種別'] = it['種別']
+            if it.get('hours'):
+                props['利用時間'] = it['hours']
+            if it.get('label'):
+                props['設置区間'] = it['label']
+            elif it.get('mark'):
+                props['設置区間'] = f"{it['addr'].replace('札幌市中央区', '')}（{it['mark']}の{ {'west': '西', 'east': '東', 'north': '北', 'south': '南'}[it['side']] }側）"
+            props['駐車枠数'] = it['spaces']
+            # 住所が書かれている地域（札幌）は、逆引きではなく県警の住所をそのまま使う
+            # （線が街区の境の道路上にあるので、逆引きだと隣の街区になることがある）
+            m = re.match(r'(.+?市.+?区)(.+)', it.get('addr', ''))
+            if m:
+                props.update({'区市町村': m.group(1), '町名': re.sub(r'\d+丁目$', '', m.group(2)), '町丁目': m.group(2)})
+            if it.get('truck_only'):
+                props['貨物車専用'] = 1
+            if it.get('season') == '4-11':
+                props['制限事項2'] = '12月1日〜3月31日は休止'
+                props['運用月'] = '4-11'
+            coords = [[round(x, 6), round(y, 6)] for x, y in line]
+            feats.append({'type': 'Feature', 'id': it['id'], 'properties': props,
+                          'geometry': {'type': 'LineString', 'coordinates': coords}, '_lines': [coords]})
+    return feats
+
+
 def main():
     if '--fetch' in sys.argv:
         fetch()
@@ -168,11 +218,12 @@ def main():
     for f in feats:
         f['properties']['都道府県'] = '東京都'
     feats += osaka_features()
+    feats += landmark_features()
     cache = geocode(feats) if '--geocode' in sys.argv else (
         json.loads(GEOCODE.read_text(encoding='utf-8')) if GEOCODE.exists() else {})
     for f in feats:
         g = cache.get(str(f['id']))
-        if g:
+        if g and not f['properties'].get('区市町村'):
             chome = '' if g['lv01Nm'] in ('', '－') else g['lv01Nm']
             f['properties'].update({'区市町村': MUNI.get(int(g['muniCd'] or 0), ''), '町名': town(chome), '町丁目': chome})
         del f['_lines']
