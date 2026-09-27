@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="vendor/leaflet.css?v=ec929f11">
-<link rel="stylesheet" href="styles.css?v=e4719c5a">
+<link rel="stylesheet" href="styles.css?v=86b759c2">
 </head>
 <body>
 
@@ -38,13 +38,13 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input id="q" type="search" enterkeyhint="search" placeholder="地名・駅名へ移動（例：銀座）" aria-label="地名で移動">
     </form>
-    <div class="qnote" id="qnote" hidden></div>
+    <div class="qnote" id="qnote" role="status" hidden></div>
     <div class="barrow">
       <button class="ftoggle" id="ftoggle" aria-expanded="false" aria-controls="filters">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
         条件入力<span class="fcount" id="fcount" hidden>0</span>
       </button>
-      <span class="count"><b id="n">0</b> 区間</span>
+      <span class="count" role="status" aria-atomic="true"><b id="n">0</b> 区間</span>
     </div>
 
     <div class="filters" id="filters" hidden>
@@ -79,6 +79,7 @@
         </select>
       </label>
       <p class="fnote" id="fnote"></p>
+      <p class="fnote fempty" id="fempty" hidden>条件に合う区間がありません。条件を減らすか「条件をクリア」を押してください。</p>
       <div class="factions">
         <button class="btn" id="freset" type="button">条件をクリア</button>
         <button class="btn primary" id="fdone" type="button"><span id="n2">0</span> 区間を表示</button>
@@ -87,7 +88,7 @@
   </div>
 
   <div class="mapbtns">
-    <button class="mapbtn" id="locate" title="現在地"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+    <button class="mapbtn" id="locate" title="現在地を表示" aria-label="現在地を表示"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
   </div>
   <div class="legend">
     <div class="lrow"><span class="k daily"></span>土日・祝日も使える</div>
@@ -99,7 +100,7 @@
 
 <aside class="listpanel" id="listpanel" aria-label="一覧" hidden>
   <div class="listhead">
-    <h2>一覧 <small><span id="n3">0</span> 区間</small></h2>
+    <h2 tabindex="-1">一覧 <small><span id="n3">0</span> 区間</small></h2>
     <button class="close" id="listClose" aria-label="一覧を閉じる">×</button>
   </div>
   <div class="listsort">
@@ -112,15 +113,16 @@
 <div class="empty" id="empty" hidden>
   <div class="card">
     <h2>区間データを読み込めませんでした</h2>
-    <p>通信状態を確かめて、ページを読み込み直してください。</p>
+    <p>通信状態を確かめて、読み込み直してください。</p>
+    <button class="btn primary" id="retry" type="button">読み込み直す</button>
   </div>
 </div>
 
-<aside class="detail" id="detail" aria-label="区間の詳細"></aside>
+<aside class="detail" id="detail" aria-label="区間の詳細" inert></aside>
 
 <script src="config.js?v=64f92221"></script>
 <script src="vendor/leaflet.js?v=5a640ff8"></script>
 <script src="zones.js?v=44bf01ba"></script>
-<script src="app.js?v=c5e4d5fb"></script>
+<script src="app.js?v=27f6b39c"></script>
 </body>
 </html>
