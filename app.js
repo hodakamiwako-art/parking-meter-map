@@ -417,14 +417,14 @@ async function boot() {
   initMap();
   bind();
   try {
-    const res = await fetch('data/zones.geojson');
+    const res = await fetch('data/zones.geojson', { cache: 'no-cache' });
     zones = Zones.normalize(await res.json());
   } catch (e) {
     $('#empty').hidden = false;
     return;
   }
   try {
-    holidays = await (await fetch('data/holidays.json')).json();
+    holidays = await (await fetch('data/holidays.json', { cache: 'no-cache' })).json();
   } catch (e) { /* 祝日一覧がなくても動く（祝日を判定しないだけ） */ }
   holidayNote();
   fillWards();
