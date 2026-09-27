@@ -51,6 +51,9 @@ MUNI = {
     26101: '京都市北区', 26102: '京都市上京区', 26103: '京都市左京区', 26104: '京都市中京区', 26105: '京都市東山区',
     26106: '京都市下京区', 26107: '京都市南区', 26108: '京都市右京区', 26109: '京都市伏見区', 26110: '京都市山科区',
     26111: '京都市西京区',
+    14101: '横浜市鶴見区', 14102: '横浜市神奈川区', 14103: '横浜市西区', 14104: '横浜市中区', 14105: '横浜市南区',
+    14106: '横浜市保土ケ谷区', 14107: '横浜市磯子区', 14111: '横浜市港南区', 14115: '横浜市栄区', 14133: '川崎市中原区',
+    14136: '川崎市宮前区', 14203: '平塚市', 14205: '藤沢市',
 }
 OSAKA = SRC / 'osaka'
 INTS = {'識別id', '制限時間', '手数料', '普通車', '貨物用有り', '二輪車', '標章車専用有り'}
@@ -187,6 +190,27 @@ def landmark_features():
     return feats
 
 
+def kanagawa_features():
+    """build/kanagawa.py が作った線を区間にする。県警が時間帯・曜日を公開していないので「不明」とする"""
+    geo_f = SRC / 'kanagawa' / 'geometry.json'
+    if not geo_f.exists():
+        return []
+    feats = []
+    for sid, v in json.loads(geo_f.read_text(encoding='utf-8')).items():
+        if not v.get('line') or len(v['line']) < 2:
+            print('kanagawa: no line for', sid)
+            continue
+        props = {'識別id': sid, '都道府県': '神奈川県', '利用時間': '', '制限時間': 60, '手数料': 300,
+                 '制限事項1': '', '制限事項2': '', '曜日不明': 1,
+                 '種別': 'パーキング・メーター' if v['kind'] == 'meter' else 'パーキング・チケット',
+                 '普通車': 1, '貨物用有り': int(v['truck']), '二輪車': 0, '標章車専用有り': 0,
+                 '設置区間': f"{v['area']}：{v['note']}", '出典': f"神奈川県警察 {v['station']}（パーキング・メーター等の設置場所）"}
+        coords = [[round(x, 6), round(y, 6)] for x, y in v['line']]
+        feats.append({'type': 'Feature', 'id': sid, 'properties': props,
+                      'geometry': {'type': 'LineString', 'coordinates': coords}, '_lines': [coords]})
+    return feats
+
+
 def main():
     if '--fetch' in sys.argv:
         fetch()
@@ -219,6 +243,7 @@ def main():
         f['properties']['都道府県'] = '東京都'
     feats += osaka_features()
     feats += landmark_features()
+    feats += kanagawa_features()
     cache = geocode(feats) if '--geocode' in sys.argv else (
         json.loads(GEOCODE.read_text(encoding='utf-8')) if GEOCODE.exists() else {})
     for f in feats:

@@ -45,7 +45,7 @@
         feeYen: num(p['手数料']),
         rules: [p['制限事項1'], p['制限事項2']].filter(Boolean).map(z2h),
         // 曜日の区分：毎日（土日祝も）／日曜・休日は除く／土・日曜・休日は除く
-        days: /土/.test(p['制限事項1']) ? 'weekday' : /日曜|休日/.test(p['制限事項1']) ? 'nosun' : 'daily',
+        days: p['曜日不明'] ? 'unknown' : /土/.test(p['制限事項1']) ? 'weekday' : /日曜|休日/.test(p['制限事項1']) ? 'nosun' : 'daily',
         car: !!p['普通車'],
         truck: !!p['貨物用有り'],
         bike: !!p['二輪車'],
