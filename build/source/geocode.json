@@ -3047,6 +3047,314 @@
 "lv01Nm": "小菅ケ谷一丁目",
 "muniCd": "14115"
 },
+"kanagawa-isezaki-1": {
+"lv01Nm": "吉田町",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-10": {
+"lv01Nm": "高根町一丁目",
+"muniCd": "14105"
+},
+"kanagawa-isezaki-11": {
+"lv01Nm": "吉田町",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-12": {
+"lv01Nm": "長者町九丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-13": {
+"lv01Nm": "福富町仲通",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-14": {
+"lv01Nm": "長者町八丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-15": {
+"lv01Nm": "長者町八丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-16": {
+"lv01Nm": "長者町七丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-17": {
+"lv01Nm": "若葉町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-18": {
+"lv01Nm": "若葉町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-19": {
+"lv01Nm": "若葉町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-2": {
+"lv01Nm": "長者町九丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-20": {
+"lv01Nm": "曙町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-21": {
+"lv01Nm": "曙町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-22": {
+"lv01Nm": "末吉町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-23": {
+"lv01Nm": "末吉町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-24": {
+"lv01Nm": "伊勢佐木町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-25": {
+"lv01Nm": "末吉町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-26": {
+"lv01Nm": "末吉町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-27": {
+"lv01Nm": "末吉町四丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-28": {
+"lv01Nm": "末吉町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-29": {
+"lv01Nm": "伊勢佐木町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-3": {
+"lv01Nm": "伊勢佐木町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-30": {
+"lv01Nm": "伊勢佐木町七丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-31": {
+"lv01Nm": "富士見町",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-4": {
+"lv01Nm": "弥生町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-5": {
+"lv01Nm": "山吹町",
+"muniCd": "14104"
+},
+"kanagawa-isezaki-6": {
+"lv01Nm": "真金町二丁目",
+"muniCd": "14105"
+},
+"kanagawa-isezaki-7": {
+"lv01Nm": "永楽町二丁目",
+"muniCd": "14105"
+},
+"kanagawa-isezaki-8": {
+"lv01Nm": "真金町二丁目",
+"muniCd": "14105"
+},
+"kanagawa-isezaki-9": {
+"lv01Nm": "高根町二丁目",
+"muniCd": "14105"
+},
+"kanagawa-kannai-1": {
+"lv01Nm": "相生町六丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-10": {
+"lv01Nm": "常盤町四丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-11": {
+"lv01Nm": "吉田町",
+"muniCd": "14104"
+},
+"kanagawa-kannai-12": {
+"lv01Nm": "伊勢佐木町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-13": {
+"lv01Nm": "太田町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-14": {
+"lv01Nm": "相生町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-15": {
+"lv01Nm": "太田町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-16": {
+"lv01Nm": "相生町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-17": {
+"lv01Nm": "太田町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-18": {
+"lv01Nm": "常盤町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-19": {
+"lv01Nm": "相生町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-2": {
+"lv01Nm": "弁天通六丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-20": {
+"lv01Nm": "常盤町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-21": {
+"lv01Nm": "常盤町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-22": {
+"lv01Nm": "日本大通",
+"muniCd": "14104"
+},
+"kanagawa-kannai-23": {
+"lv01Nm": "日本大通",
+"muniCd": "14104"
+},
+"kanagawa-kannai-24": {
+"lv01Nm": "北仲通一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-25": {
+"lv01Nm": "弁天通二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-26": {
+"lv01Nm": "港町三丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-27": {
+"lv01Nm": "港町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-28": {
+"lv01Nm": "北仲通三丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-29": {
+"lv01Nm": "住吉町六丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-3": {
+"lv01Nm": "弁天通五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-30": {
+"lv01Nm": "住吉町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-31": {
+"lv01Nm": "尾上町六丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-32": {
+"lv01Nm": "尾上町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-33": {
+"lv01Nm": "尾上町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-34": {
+"lv01Nm": "尾上町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-35": {
+"lv01Nm": "常盤町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-36": {
+"lv01Nm": "相生町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-37": {
+"lv01Nm": "本町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-38": {
+"lv01Nm": "弁天通一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-39": {
+"lv01Nm": "太田町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-4": {
+"lv01Nm": "太田町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-40": {
+"lv01Nm": "住吉町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-41": {
+"lv01Nm": "相生町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-42": {
+"lv01Nm": "常盤町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-43": {
+"lv01Nm": "尾上町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-44": {
+"lv01Nm": "尾上町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-45": {
+"lv01Nm": "尾上町二丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-46": {
+"lv01Nm": "尾上町一丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-5": {
+"lv01Nm": "相生町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-6": {
+"lv01Nm": "太田町四丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-7": {
+"lv01Nm": "相生町四丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-8": {
+"lv01Nm": "常盤町五丁目",
+"muniCd": "14104"
+},
+"kanagawa-kannai-9": {
+"lv01Nm": "常盤町五丁目",
+"muniCd": "14104"
+},
 "kanagawa-konandai-1": {
 "lv01Nm": "港南台三丁目",
 "muniCd": "14111"
@@ -3090,6 +3398,22 @@
 "kanagawa-tsurumi-2": {
 "lv01Nm": "鶴見中央四丁目",
 "muniCd": "14101"
+},
+"kanagawa-yamashita-1": {
+"lv01Nm": "山下町",
+"muniCd": "14104"
+},
+"kanagawa-yamashita-2": {
+"lv01Nm": "山下町",
+"muniCd": "14104"
+},
+"kanagawa-yamashita-3": {
+"lv01Nm": "山下町",
+"muniCd": "14104"
+},
+"kanagawa-yamashita-4": {
+"lv01Nm": "元町三丁目",
+"muniCd": "14104"
 },
 "kanagawa-yokohama-1": {
 "lv01Nm": "鶴屋町二丁目",
