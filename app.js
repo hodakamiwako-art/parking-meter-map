@@ -14,50 +14,33 @@ const BASE = CARTO_KEY ? {
   attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   subdomains: 'abc', maxNativeZoom: 19,
 };
-const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁 時間制限駐車区間案内地図</a>';
+const SRC_ATTR = '区間データ：<a href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁</a>（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener">CC BY 4.0</a>）';
+
+// 国土地理院の地名検索・住所の逆引き（鍵不要）
+const GSI_SEARCH = 'https://msearch.gsi.go.jp/address-search/AddressSearch?q=';
+const GSI_REVERSE = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress';
+// 逆引きは市区町村コードで返るので、都内の区市の名前を引けるようにしておく
+const MUNI = {
+  13101: '千代田区', 13102: '中央区', 13103: '港区', 13104: '新宿区', 13105: '文京区', 13106: '台東区',
+  13107: '墨田区', 13108: '江東区', 13109: '品川区', 13110: '目黒区', 13111: '大田区', 13112: '世田谷区',
+  13113: '渋谷区', 13114: '中野区', 13115: '杉並区', 13116: '豊島区', 13117: '北区', 13118: '荒川区',
+  13119: '板橋区', 13120: '練馬区', 13121: '足立区', 13122: '葛飾区', 13123: '江戸川区',
+  13201: '八王子市', 13202: '立川市', 13203: '武蔵野市', 13204: '三鷹市', 13205: '青梅市', 13206: '府中市',
+  13207: '昭島市', 13208: '調布市', 13209: '町田市', 13210: '小金井市', 13211: '小平市', 13212: '日野市',
+  13213: '東村山市', 13214: '国分寺市', 13215: '国立市', 13218: '福生市', 13219: '狛江市', 13220: '東大和市',
+  13221: '清瀬市', 13222: '東久留米市', 13223: '武蔵村山市', 13224: '多摩市', 13225: '稲城市', 13227: '羽村市',
+  13228: 'あきる野市', 13229: '西東京市',
+};
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { q: '', kind: '', ward: '', limit: '', here: null, sel: null };
+const state = { kind: '', limit: '', vehicle: '', now: false, here: null, sel: null };
 let zones = [];
 let shown = [];
-let map, tiles, layer, hereMark;
+let map, tiles, layer, hereMark, placeMark;
 const drawn = new Map(); // id → polyline 群
-
-/* ---------- 端末への保存（読み込んだ GeoJSON） ---------- */
-const DB = {
-  open() {
-    return new Promise((res, rej) => {
-      const r = indexedDB.open('parkmap', 1);
-      r.onupgradeneeded = () => r.result.createObjectStore('kv');
-      r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-    });
-  },
-  async get(k) {
-    try {
-      const db = await this.open();
-      return await new Promise(res => {
-        const q = db.transaction('kv').objectStore('kv').get(k);
-        q.onsuccess = () => res(q.result);
-        q.onerror = () => res(undefined);
-      });
-    } catch (e) { return undefined; }
-  },
-  async set(k, v) {
-    try {
-      const db = await this.open();
-      db.transaction('kv', 'readwrite').objectStore('kv').put(v, k);
-    } catch (e) { /* 保存できない環境でも表示はする */ }
-  },
-  async del(k) {
-    try {
-      const db = await this.open();
-      db.transaction('kv', 'readwrite').objectStore('kv').delete(k);
-    } catch (e) {}
-  },
-};
+const addrCache = new Map();
 
 /* ---------- 地図 ---------- */
 const darkQ = window.matchMedia('(prefers-color-scheme: dark)');
@@ -74,7 +57,7 @@ function initMap() {
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.addAttribution(SRC_ATTR);
   setTiles();
-  darkQ.addEventListener?.('change', setTiles);
+  darkQ.addEventListener?.('change', () => { setTiles(); draw(); });
   layer = L.layerGroup().addTo(map);
   map.on('moveend', () => { if (!state.here) renderList(); });
   map.on('zoomend', highlight);
@@ -96,7 +79,7 @@ function draw() {
       : L.polyline(l, { color: col[z.kind], weight: weight(), opacity: .85, lineCap: 'round' }));
     pls.forEach(p => {
       p.on('click', () => openDetail(z, false));
-      p.bindTooltip(esc(z.name || z.addr || '区間'), { sticky: true, direction: 'top' });
+      p.bindTooltip(esc(title(z)), { sticky: true, direction: 'top' });
       layer.addLayer(p);
     });
     drawn.set(z.id, pls);
@@ -112,19 +95,28 @@ function highlight() {
   }));
 }
 
+/* ---------- 表示の言い回し ---------- */
+const KIND = { meter: 'パーキング・メーター', ticket: 'パーキング・チケット' };
+const fmtLimit = z => (z.limitMin == null ? '' : z.limitMin >= 60 && z.limitMin % 60 === 0 ? `${z.limitMin / 60}時間` : `${z.limitMin}分`);
+const fmtFee = z => (z.feeYen == null ? '' : `${z.feeYen.toLocaleString()}円`);
+const title = z => [fmtLimit(z), fmtFee(z)].filter(Boolean).join('・') || KIND[z.kind];
+// 一覧では「日曜・休日を除く」を「日・休日は除く」と短くし、全区間共通の正月の除外は省く
+const shortRule = r => (/^1月1日/.test(r) ? '' : r.replace(/曜/g, '').replace(/、/g, '・').replace(/を除く$/, 'は除く'));
+const vehicles = z => [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・');
+
 /* ---------- 絞り込みと一覧 ---------- */
 function applyFilters() {
-  const q = state.q.trim().toLowerCase();
-  const terms = q ? q.split(/\s+/) : [];
+  const now = new Date();
   shown = zones.filter(z => {
     if (state.kind && z.kind !== state.kind) return false;
-    if (state.ward && z.ward !== state.ward) return false;
     if (state.limit) {
       const lim = +state.limit;
-      if (z.limitMin == null) return false;
-      if (lim === 61 ? z.limitMin <= 60 : z.limitMin > lim) return false;
+      if (z.limitMin == null || z.limitMin > lim) return false;
     }
-    return terms.every(t => z.hay.includes(t));
+    if (state.vehicle === 'truck' && !z.truck) return false;
+    if (state.vehicle === 'bike' && !z.bike) return false;
+    if (state.now && !Zones.openNow(z, now)) return false;
+    return true;
   });
   $('#n').textContent = shown.length.toLocaleString();
   draw();
@@ -138,8 +130,6 @@ function meters(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 const fmtDist = m => (m < 1000 ? `${Math.round(m / 10) * 10}m` : `${(m / 1000).toFixed(1)}km`);
-const fmtLimit = z => (z.limitMin != null ? (z.limitMin % 60 === 0 && z.limitMin >= 60 ? `${z.limitMin / 60}時間` : `${z.limitMin}分`) : z.limit);
-const fmtFee = z => (z.feeYen != null ? `${z.feeYen.toLocaleString()}円` : z.fee);
 
 function renderList() {
   const origin = state.here || [map.getCenter().lat, map.getCenter().lng];
@@ -148,19 +138,30 @@ function renderList() {
     .map(z => ({ z, d: meters(origin, z.center) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, LIST_MAX);
-  $('#list').innerHTML = rows.map(({ z, d }) => `
+  $('#list').innerHTML = rows.map(({ z, d }) => {
+    const rule = z.rules.map(shortRule).filter(Boolean)[0];
+    const tags = [z.truck && '貨物枠', z.bike && '二輪', z.permitOnly && '標章車専用'].filter(Boolean);
+    return `
     <li data-id="${esc(z.id)}" class="${z.id === state.sel ? 'on' : ''}">
       <span class="k ${z.kind}"></span>
       <div class="body">
-        <div class="nm">${esc(z.name || z.addr || '名称なし')}</div>
-        <div class="meta">
-          ${z.ward ? `<span>${esc(z.ward)}</span>` : ''}
-          ${fmtLimit(z) ? `<span>${esc(fmtLimit(z))}</span>` : ''}
-          ${fmtFee(z) ? `<span>${esc(fmtFee(z))}</span>` : ''}
-        </div>
+        <div class="nm">${esc(title(z))}${tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>
+        <div class="meta"><span>${esc(z.hours)}</span>${rule ? `<span>${esc(rule)}</span>` : ''}</div>
       </div>
       <span class="dist">${fmtDist(d)}</span>
-    </li>`).join('') || '<li class="none">条件に合う区間はありません</li>';
+    </li>`;
+  }).join('') || '<li class="none">条件に合う区間はありません</li>';
+}
+
+/* ---------- 住所の逆引き（詳細を開いたときだけ） ---------- */
+async function address(z) {
+  if (addrCache.has(z.id)) return addrCache.get(z.id);
+  const [lat, lng] = z.center;
+  const res = await fetch(`${GSI_REVERSE}?lat=${lat}&lon=${lng}`);
+  const r = (await res.json()).results;
+  const text = r ? `${MUNI[+r.muniCd] || ''}${r.lv01Nm && r.lv01Nm !== '－' ? r.lv01Nm : ''}` : '';
+  addrCache.set(z.id, text);
+  return text;
 }
 
 /* ---------- 詳細 ---------- */
@@ -174,33 +175,34 @@ function openDetail(z, fly = true) {
     map.flyToBounds(b, { maxZoom: 18, paddingTopLeft: [60, 60], paddingBottomRight: [wide ? 420 : 60, 60], duration: .6 });
     showTab('map');
   }
-  const row = (k, v) => (v ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : '');
+  const row = (k, v, id) => (v ? `<dt>${k}</dt><dd${id ? ` id="${id}"` : ''}>${esc(v)}</dd>` : '');
   const [lat, lng] = z.center;
-  const rawRows = Object.entries(z.raw)
-    .filter(([, v]) => v !== null && v !== '' && typeof v !== 'object')
-    .map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join('');
+  const open = Zones.openNow(z);
   $('#detail').innerHTML = `
     <button class="close" aria-label="閉じる">×</button>
-    <div class="badge ${z.kind}">${z.kind === 'ticket' ? 'パーキング・チケット' : 'パーキング・メーター'}</div>
-    <h2>${esc(z.name || z.addr || '名称なし')}</h2>
+    <div class="badge ${z.kind}">${KIND[z.kind]}</div>
+    <h2>${esc(title(z))}</h2>
     <dl>
-      ${row('所在地', z.addr)}
-      ${row('区市町村', z.ward)}
+      ${row('場所', '住所を調べています…', 'addr')}
       ${row('制限時間', fmtLimit(z))}
-      ${row('料金', fmtFee(z))}
-      ${row('時間帯', z.hours)}
-      ${row('曜日', z.days)}
-      ${row('対象車両', z.vehicle)}
-      ${row('台数', z.count)}
+      ${row('料金', fmtFee(z) && `${fmtFee(z)}（${fmtLimit(z) || '1回'}）`)}
+      ${row('利用時間', z.hours)}
+      ${row('除く日', z.rules.join('、'))}
+      ${row('いま', open ? '利用時間内' : '利用時間外（祝日は判定していません）')}
+      ${row('車種', vehicles(z))}
+      ${z.permitOnly ? row('注意', '標章車（障害者等用）専用の枠があります') : ''}
+      ${row('区間番号', z.id)}
     </dl>
     <div class="acts">
       <a class="btn primary" href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving" target="_blank" rel="noopener">Googleマップで経路</a>
       <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank" rel="noopener">場所を開く</a>
     </div>
-    <p class="warn">現地の標識・メーターの表示が優先されます。規制時間外や、工事・行事で使えない場合があります。</p>
-    ${rawRows ? `<details><summary>元データのすべての項目</summary><table>${rawRows}</table></details>` : ''}`;
+    <p class="warn">現地の標識・メーターの表示が優先されます。利用時間外は駐車できないことがあります。工事や行事で使えない場合もあります。</p>`;
   $('#detail').classList.add('open');
   $('#detail .close').onclick = closeDetail;
+  address(z)
+    .then(a => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = a || '（住所を特定できませんでした）'; })
+    .catch(() => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = '（住所を取得できませんでした）'; });
 }
 
 function closeDetail() {
@@ -210,25 +212,36 @@ function closeDetail() {
   document.querySelectorAll('#list li.on').forEach(li => li.classList.remove('on'));
 }
 
-/* ---------- 画面の組み立て ---------- */
-function fillWards() {
-  const wards = [...new Set(zones.map(z => z.ward).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
-  $('#ward').innerHTML = '<option value="">区市町村：すべて</option>' +
-    wards.map(w => `<option>${esc(w)}</option>`).join('');
-  $('#ward').hidden = !wards.length;
+/* ---------- 地名で移動 ---------- */
+async function goPlace(q) {
+  q = q.trim();
+  if (!q) return;
+  const note = $('#qnote');
+  note.textContent = '探しています…';
+  note.hidden = false;
+  try {
+    const res = await fetch(GSI_SEARCH + encodeURIComponent(q));
+    const hits = await res.json();
+    // 都内を優先（同名の地名が全国にあるため）
+    const hit = hits.find(h => /東京都/.test(h.properties.title)) || hits[0];
+    if (!hit) { note.textContent = `「${q}」は見つかりませんでした`; return; }
+    const [lng, lat] = hit.geometry.coordinates;
+    state.here = null;
+    if (placeMark) map.removeLayer(placeMark);
+    placeMark = L.circleMarker([lat, lng], { radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
+      .bindTooltip(esc(hit.properties.title)).addTo(map);
+    map.setView([lat, lng], 16);
+    showTab('list');
+    note.textContent = `${hit.properties.title} の近く`;
+  } catch (e) {
+    note.textContent = '地名検索につながりませんでした';
+  }
 }
 
+/* ---------- 画面の組み立て ---------- */
 function fitAll() {
   const pts = shown.flatMap(z => z.lines.flat());
   if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
-}
-
-function load(geojson) {
-  zones = Zones.normalize(geojson);
-  $('#empty').hidden = zones.length > 0;
-  fillWards();
-  applyFilters();
-  fitAll();
 }
 
 function showTab(which) {
@@ -239,14 +252,15 @@ function showTab(which) {
 }
 
 function bind() {
-  $('#q').addEventListener('input', e => { state.q = e.target.value; applyFilters(); });
+  $('#qform').addEventListener('submit', e => { e.preventDefault(); $('#q').blur(); goPlace($('#q').value); });
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
     state.kind = b.dataset.kind;
     document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
     applyFilters();
   }));
-  $('#ward').addEventListener('change', e => { state.ward = e.target.value; applyFilters(); fitAll(); });
   $('#limit').addEventListener('change', e => { state.limit = e.target.value; applyFilters(); });
+  $('#vehicle').addEventListener('change', e => { state.vehicle = e.target.value; applyFilters(); });
+  $('#nowonly').addEventListener('change', e => { state.now = e.target.checked; applyFilters(); });
   $('#list').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
     if (li) openDetail(zones.find(z => z.id === li.dataset.id));
@@ -262,38 +276,26 @@ function bind() {
       renderList();
     }, () => alert('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
   });
-  $('#importFile').addEventListener('change', async e => {
-    const f = e.target.files[0];
-    if (!f) return;
-    try {
-      const gj = JSON.parse(await f.text());
-      const n = Zones.normalize(gj).length;
-      if (!n) throw new Error('区間が見つかりません');
-      await DB.set('geojson', gj);
-      load(gj);
-      alert(`${n.toLocaleString()}区間を読み込みました`);
-    } catch (err) {
-      alert('読み込めませんでした（GeoJSON 形式のファイルを選んでください）\n' + err.message);
-    }
-    e.target.value = '';
-  });
   $('#tabList').addEventListener('click', () => showTab('list'));
   $('#tabMap').addEventListener('click', () => showTab('map'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+  // 「いま利用時間内」は時間が進むと変わるので、1分ごとに見直す
+  setInterval(() => { if (state.now) applyFilters(); }, 60000);
 }
 
 async function boot() {
   initMap();
   bind();
   showTab('list');
-  // 端末で読み込んだデータがあればそれを、なければ公開用に置いたデータを使う
-  const local = await DB.get('geojson');
-  if (local) return load(local);
   try {
-    const res = await fetch('data/zones.geojson', { cache: 'no-cache' });
-    if (res.ok) return load(await res.json());
-  } catch (e) {}
-  load({ type: 'FeatureCollection', features: [] });
+    const res = await fetch('data/zones.geojson');
+    zones = Zones.normalize(await res.json());
+  } catch (e) {
+    $('#empty').hidden = false;
+    return;
+  }
+  applyFilters();
+  fitAll();
 }
 
 boot();

@@ -46,13 +46,20 @@ a{color:var(--accent)}
 .spacer{flex:1}
 .ghost{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;white-space:nowrap}
 .ghost:hover{background:var(--surface-2)}
+a.ghost{color:var(--ink);text-decoration:none}
 
 .app{display:grid;grid-template-columns:380px 1fr;height:calc(100% - var(--head-h))}
 .panel{display:flex;flex-direction:column;min-height:0;background:var(--surface);border-right:1px solid var(--line)}
 .controls{padding:14px 16px 10px;display:grid;gap:10px;border-bottom:1px solid var(--line)}
 .search{display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:10px;padding:0 12px}
 .search svg{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;flex:none}
+.search{margin:0}
 .search input{border:0;background:transparent;outline:0;padding:10px 0;width:100%}
+.qnote{font-size:12px;color:var(--muted);margin-top:-4px}
+.qnote[hidden]{display:none}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--accent);margin:0}
+.chk small{color:var(--muted);font-size:11px;margin-left:4px}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface-2);border-radius:10px;padding:3px;gap:3px}
 .seg button{border:0;background:transparent;border-radius:8px;padding:7px 4px;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
 .seg button[aria-pressed="true"]{background:var(--surface);box-shadow:var(--shadow);font-weight:700}
@@ -71,7 +78,8 @@ a{color:var(--accent)}
 .list li.on{background:var(--accent-wash)}
 .list li.none{cursor:default;color:var(--muted);justify-content:center;padding:32px 16px}
 .list .body{flex:1;min-width:0}
-.list .nm{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{display:inline-block;font-size:10px;font-weight:500;color:var(--ink-2);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:6px;vertical-align:2px}
 .list .meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--muted)}
 .list .dist{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;flex:none}
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>パーキングメーター地図</title>
-<meta name="description" content="東京都内のパーキング・メーター／パーキング・チケットの設置区間を地図で探せます。警視庁の時間制限駐車区間オープンデータを使っています。">
+<meta name="description" content="東京都内のパーキング・メーター／パーキング・チケット752区間を、現在地から近い順に地図で探せます。警視庁の時間制限駐車区間オープンデータを使っています。">
 <meta name="theme-color" content="#1E4E8C">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,9 +18,7 @@
 <header class="mast">
   <h1><span class="sub">TOKYO · ON-STREET PARKING</span>パーキングメーター地図</h1>
   <span class="spacer"></span>
-  <label class="ghost" id="importBtn" title="警視庁のオープンデータ（GeoJSON）を読み込む">
-    データを読み込む<input type="file" id="importFile" accept=".geojson,.json,application/geo+json,application/json" hidden>
-  </label>
+  <a class="ghost" href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁の地図</a>
 </header>
 
 <div class="mobtabs" role="tablist">
@@ -31,24 +29,29 @@
 <div class="app">
   <aside class="panel">
     <div class="controls">
-      <label class="search">
+      <form class="search" id="qform" role="search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-        <input id="q" type="search" placeholder="地名・路線名・住所で検索" aria-label="検索">
-      </label>
+        <input id="q" type="search" enterkeyhint="search" placeholder="地名・駅名へ移動（例：銀座、新宿駅）" aria-label="地名で移動">
+      </form>
+      <div class="qnote" id="qnote" hidden></div>
       <div class="seg" role="group" aria-label="種類">
         <button data-kind="" aria-pressed="true">すべて</button>
         <button data-kind="meter" aria-pressed="false"><i class="k meter"></i>メーター</button>
         <button data-kind="ticket" aria-pressed="false"><i class="k ticket"></i>チケット</button>
       </div>
       <div class="selrow">
-        <select id="ward" aria-label="区市町村"></select>
         <select id="limit" aria-label="制限時間">
           <option value="">制限時間：すべて</option>
-          <option value="40">40分以内</option>
-          <option value="60">60分以内</option>
-          <option value="61">60分超</option>
+          <option value="20">20分まで</option>
+          <option value="40">40分まで</option>
+        </select>
+        <select id="vehicle" aria-label="車種">
+          <option value="">車種：すべて</option>
+          <option value="truck">貨物用あり</option>
+          <option value="bike">二輪車</option>
         </select>
       </div>
+      <label class="chk"><input type="checkbox" id="nowonly"><span>いま利用時間内だけ<small>（祝日は判定しません）</small></span></label>
     </div>
     <div class="tally"><span><b id="n">0</b> 区間</span><span class="sortnote" id="sortnote">地図の中心から近い順</span></div>
     <ul class="list" id="list"></ul>
@@ -69,9 +72,8 @@
 
 <div class="empty" id="empty" hidden>
   <div class="card">
-    <h2>区間データがまだ入っていません</h2>
-    <p>警視庁の<a href="https://parking-meter.jp/open-data" target="_blank" rel="noopener">時間制限駐車区間案内地図のオープンデータ</a>から GeoJSON をダウンロードし、右上の「データを読み込む」で選んでください。この端末に保存され、次回からもそのまま表示されます。</p>
-    <p class="small">公開用には、同じファイルを <code>data/zones.geojson</code> に置くと全員に表示されます。</p>
+    <h2>区間データを読み込めませんでした</h2>
+    <p>通信状態を確かめて、ページを読み込み直してください。</p>
   </div>
 </div>
 
