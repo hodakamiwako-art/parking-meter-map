@@ -35,7 +35,9 @@ const MUNI = {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { kind: '', ward: '', town: '', limit: '', vehicle: '', days: '', at: '', sort: 'near', here: null, sel: null };
+const state = { ward: '', town: '', days: '', at: '', limit: '', vehicle: '', sort: 'near', here: null, sel: null };
+// 条件入力の項目（画面の並び順）。数えるのとクリアに使う
+const FILTERS = ['ward', 'town', 'days', 'at', 'limit', 'vehicle'];
 let zones = [];
 let holidays = { years: [], dates: {} }; // data/holidays.json
 let shown = [];
@@ -60,7 +62,7 @@ function initMap() {
   setTiles();
   darkQ.addEventListener?.('change', () => { setTiles(); draw(); });
   layer = L.layerGroup().addTo(map);
-  map.on('moveend', () => { if (!state.here) renderList(); });
+  map.on('moveend', () => { if (!state.here && listOpen()) renderList(); });
   map.on('zoomend', highlight);
 }
 
@@ -111,7 +113,6 @@ const vehicles = z => [z.car && '普通車', z.truck && '貨物用あり', z.bik
 function applyFilters() {
   const now = new Date();
   shown = zones.filter(z => {
-    if (state.kind && z.kind !== state.kind) return false;
     if (state.ward && z.ward !== state.ward) return false;
     if (state.town && z.town !== state.town) return false;
     if (state.limit) {
@@ -125,9 +126,13 @@ function applyFilters() {
     if (state.at === 'now' ? !Zones.openNow(z, now, holidays.dates) : state.at && !Zones.usableAt(z, +state.at)) return false;
     return true;
   });
-  $('#n').textContent = shown.length.toLocaleString();
+  const n = shown.length.toLocaleString();
+  ['#n', '#n2', '#n3'].forEach(id => { $(id).textContent = n; });
+  const active = FILTERS.filter(k => state[k]).length;
+  $('#fcount').textContent = active;
+  $('#fcount').hidden = !active;
   draw();
-  renderList();
+  if (listOpen()) renderList();
 }
 
 function meters(a, b) {
@@ -193,12 +198,8 @@ function openDetail(z, fly = true) {
   state.sel = z.id;
   highlight();
   document.querySelectorAll('#list li').forEach(li => li.classList.toggle('on', li.dataset.id === z.id));
-  if (fly) {
-    const b = L.latLngBounds(z.lines.flat());
-    const wide = window.innerWidth > 760; // 広い画面では右に詳細が重なるので、その分よける
-    map.flyToBounds(b, { maxZoom: 18, paddingTopLeft: [60, 60], paddingBottomRight: [wide ? 420 : 60, 60], duration: .6 });
-    showTab('map');
-  }
+  if (narrow()) closeList();
+  toggleFilters(false);
   const row = (k, v, id) => (v ? `<dt>${k}</dt><dd${id ? ` id="${id}"` : ''}>${esc(v)}</dd>` : '');
   const [lat, lng] = z.center;
   const today = new Date();
@@ -226,6 +227,14 @@ function openDetail(z, fly = true) {
     <p class="warn">現地の標識・メーターの表示が優先されます。利用時間外は駐車できないことがあります。工事や行事で使えない場合もあります。</p>`;
   $('#detail').classList.add('open');
   $('#detail .close').onclick = closeDetail;
+  if (fly) {
+    // 詳細が重なる分をよけて、選んだ区間が見える位置に寄せる（スマホは下のシート、広い画面は右のカード）
+    const b = L.latLngBounds(z.lines.flat());
+    const sheet = $('#detail').offsetHeight;
+    map.flyToBounds(b, narrow()
+      ? { maxZoom: 18, paddingTopLeft: [40, 150], paddingBottomRight: [40, sheet + 30], duration: .6 }
+      : { maxZoom: 18, paddingTopLeft: [listOpen() ? 440 : 60, 60], paddingBottomRight: [420, 60], duration: .6 });
+  }
   address(z)
     .then(a => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = a || '（住所を特定できませんでした）'; })
     .catch(() => { if (state.sel === z.id && $('#addr')) $('#addr').textContent = '（住所を取得できませんでした）'; });
@@ -257,7 +266,7 @@ async function goPlace(q) {
     placeMark = L.circleMarker([lat, lng], { radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
       .bindTooltip(esc(hit.properties.title)).addTo(map);
     map.setView([lat, lng], 16);
-    showTab('list');
+    if (listOpen()) renderList();
     note.textContent = `${hit.properties.title} の近く`;
   } catch (e) {
     note.textContent = '地名検索につながりませんでした';
@@ -280,7 +289,7 @@ function fillHours() {
   if (!spans.length) return;
   const from = Math.floor(Math.min(...spans.map(s => s[0])) / 60);
   const to = Math.ceil(Math.max(...spans.map(s => s[1])) / 60);
-  let opts = '<option value="">時間帯：すべて</option><option value="now">いま使える</option>';
+  let opts = '<option value="">すべて</option><option value="now">いま使える</option>';
   for (let h = from; h < to; h++) opts += `<option value="${h * 60}">${h}:00 に使える</option>`;
   $('#at').innerHTML = opts;
 }
@@ -295,16 +304,16 @@ function count(list, k) {
 function fillWards() {
   const n = count(zones, 'ward');
   const wards = Object.keys(n).sort((a, b) => n[b] - n[a]);
-  $('#ward').innerHTML = '<option value="">エリア：すべて</option>' +
+  $('#ward').innerHTML = '<option value="">すべて</option>' +
     wards.map(w => `<option value="${esc(w)}">${esc(w)}（${n[w]}）</option>`).join('');
-  $('#arearow').hidden = !wards.length;
+  $('#ward').closest('label').hidden = $('#town').closest('label').hidden = !wards.length;
   fillTowns();
 }
 
 function fillTowns() {
   const n = count(zones.filter(z => z.ward === state.ward), 'town');
   const towns = Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b, 'ja'));
-  $('#town').innerHTML = '<option value="">町名：すべて</option>' +
+  $('#town').innerHTML = `<option value="">${state.ward ? 'すべて' : '先に区を選んでください'}</option>` +
     towns.map(t => `<option value="${esc(t)}">${esc(t)}（${n[t]}）</option>`).join('');
   $('#town').disabled = !state.ward;
 }
@@ -312,23 +321,54 @@ function fillTowns() {
 /* ---------- 画面の組み立て ---------- */
 function fitAll() {
   const pts = shown.flatMap(z => z.lines.flat());
-  if (pts.length) map.fitBounds(L.latLngBounds(pts), { padding: [30, 30] });
+  // 左上の検索・条件入力の下に隠れないよう、上側を広めにあける
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60] });
 }
 
-function showTab(which) {
-  document.body.dataset.tab = which;
-  $('#tabList').setAttribute('aria-pressed', which === 'list');
-  $('#tabMap').setAttribute('aria-pressed', which === 'map');
-  if (which === 'map') setTimeout(() => map.invalidateSize(), 50);
+const narrow = () => window.innerWidth <= 760;
+const listOpen = () => !$('#listpanel').hidden;
+
+function openList() {
+  toggleMenu(false);
+  toggleFilters(false);
+  if (narrow()) closeDetail();
+  $('#listpanel').hidden = false;
+  document.body.classList.add('listing');
+  renderList();
+}
+function closeList() {
+  $('#listpanel').hidden = true;
+  document.body.classList.remove('listing');
+}
+
+function toggleMenu(open = $('#menu').hidden) {
+  $('#menu').hidden = !open;
+  $('#menuBtn').setAttribute('aria-expanded', open);
+}
+
+function toggleFilters(open = $('#filters').hidden) {
+  $('#filters').hidden = !open;
+  $('#ftoggle').setAttribute('aria-expanded', open);
+  if (open) { toggleMenu(false); if (narrow()) { closeDetail(); closeList(); } }
+}
+
+function resetFilters() {
+  FILTERS.forEach(k => { state[k] = ''; $('#' + k).value = ''; });
+  fillTowns();
+  applyFilters();
+  fitAll();
 }
 
 function bind() {
   $('#qform').addEventListener('submit', e => { e.preventDefault(); $('#q').blur(); goPlace($('#q').value); });
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
-    state.kind = b.dataset.kind;
-    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
-    applyFilters();
-  }));
+  $('#menuBtn').addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
+  document.addEventListener('click', e => { if (!$('#menu').hidden && !e.target.closest('#menu')) toggleMenu(false); });
+  $('#menuList').addEventListener('click', openList);
+  $('#menuFit').addEventListener('click', () => { toggleMenu(false); state.here = null; fitAll(); });
+  $('#listClose').addEventListener('click', closeList);
+  $('#ftoggle').addEventListener('click', () => toggleFilters());
+  $('#fdone').addEventListener('click', () => toggleFilters(false));
+  $('#freset').addEventListener('click', resetFilters);
   $('#ward').addEventListener('change', e => {
     state.ward = e.target.value;
     state.town = '';
@@ -346,7 +386,6 @@ function bind() {
     const li = e.target.closest('li[data-id]');
     if (li) openDetail(zones.find(z => z.id === li.dataset.id));
   });
-  $('#fitall').addEventListener('click', () => { state.here = null; fitAll(); });
   $('#locate').addEventListener('click', () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(p => {
@@ -354,12 +393,16 @@ function bind() {
       if (hereMark) map.removeLayer(hereMark);
       hereMark = L.circleMarker(state.here, { radius: 8, color: '#fff', weight: 3, fillColor: '#2A7FFF', fillOpacity: 1 }).addTo(map);
       map.setView(state.here, 17);
-      renderList();
+      if (listOpen()) renderList();
     }, () => alert('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
   });
-  $('#tabList').addEventListener('click', () => showTab('list'));
-  $('#tabMap').addEventListener('click', () => showTab('map'));
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!$('#menu').hidden) toggleMenu(false);
+    else if (!$('#filters').hidden) toggleFilters(false);
+    else if ($('#detail').classList.contains('open')) closeDetail();
+    else closeList();
+  });
   // 「いま使える」は時間が進むと変わるので、1分ごとに見直す
   setInterval(() => { holidayNote(); if (state.at === 'now') applyFilters(); }, 60000);
 }
@@ -367,7 +410,6 @@ function bind() {
 async function boot() {
   initMap();
   bind();
-  showTab('list');
   try {
     const res = await fetch('data/zones.geojson');
     zones = Zones.normalize(await res.json());

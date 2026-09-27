@@ -18,72 +18,91 @@
 <header class="mast">
   <h1><span class="sub">TOKYO · ON-STREET PARKING</span>パーキングメーター地図</h1>
   <span class="spacer"></span>
-  <a class="ghost" href="https://parking-meter.jp/" target="_blank" rel="noopener">警視庁の地図</a>
+  <button class="menubtn" id="menuBtn" aria-label="メニュー" aria-expanded="false" aria-controls="menu">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
+  <nav class="menu" id="menu" hidden>
+    <button id="menuList"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>一覧で見る</button>
+    <button id="menuFit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体を表示</button>
+    <a href="https://parking-meter.jp/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>警視庁の地図</a>
+  </nav>
 </header>
 
-<div class="mobtabs" role="tablist">
-  <button id="tabList" aria-pressed="true">一覧</button>
-  <button id="tabMap" aria-pressed="false">地図</button>
-</div>
+<main class="mapwrap">
+  <div id="map"></div>
 
-<div class="app">
-  <aside class="panel">
-    <div class="controls">
-      <form class="search" id="qform" role="search">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
-        <input id="q" type="search" enterkeyhint="search" placeholder="地名・駅名へ移動（例：銀座、新宿駅）" aria-label="地名で移動">
-      </form>
-      <div class="qnote" id="qnote" hidden></div>
-      <div class="seg" role="group" aria-label="種類">
-        <button data-kind="" aria-pressed="true">すべて</button>
-        <button data-kind="meter" aria-pressed="false"><i class="k meter"></i>メーター</button>
-        <button data-kind="ticket" aria-pressed="false"><i class="k ticket"></i>チケット</button>
-      </div>
-      <div class="selrow" id="arearow" hidden>
-        <select id="ward" aria-label="エリア"></select>
-        <select id="town" aria-label="町名" disabled></select>
-      </div>
-      <div class="selrow">
-        <select id="limit" aria-label="制限時間">
-          <option value="">制限時間：すべて</option>
-          <option value="20">20分まで</option>
-          <option value="40">40分まで</option>
-        </select>
-        <select id="vehicle" aria-label="車種">
-          <option value="">車種：すべて</option>
-          <option value="truck">貨物用あり</option>
-          <option value="bike">二輪車</option>
-        </select>
-      </div>
-      <div class="selrow">
-        <select id="days" aria-label="曜日">
-          <option value="">曜日：すべて</option>
+  <div class="topbar">
+    <form class="search" id="qform" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+      <input id="q" type="search" enterkeyhint="search" placeholder="地名・駅名へ移動（例：銀座）" aria-label="地名で移動">
+    </form>
+    <div class="qnote" id="qnote" hidden></div>
+    <div class="barrow">
+      <button class="ftoggle" id="ftoggle" aria-expanded="false" aria-controls="filters">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg>
+        条件入力<span class="fcount" id="fcount" hidden>0</span>
+      </button>
+      <span class="count"><b id="n">0</b> 区間</span>
+    </div>
+
+    <div class="filters" id="filters" hidden>
+      <label><span>区</span><select id="ward"></select></label>
+      <label><span>町名</span><select id="town" disabled></select></label>
+      <label><span>曜日</span>
+        <select id="days">
+          <option value="">すべて</option>
           <option value="daily">土日・祝日も使える</option>
           <option value="closed">日曜・祝日は除く</option>
         </select>
-        <select id="at" aria-label="時間帯">
-          <option value="">時間帯：すべて</option>
+      </label>
+      <label><span>時間帯</span>
+        <select id="at">
+          <option value="">すべて</option>
           <option value="now">いま使える</option>
         </select>
-      </div>
+      </label>
+      <label><span>制限時間</span>
+        <select id="limit">
+          <option value="">すべて</option>
+          <option value="20">20分まで</option>
+          <option value="40">40分まで</option>
+        </select>
+      </label>
+      <label><span>車種</span>
+        <select id="vehicle">
+          <option value="">すべて</option>
+          <option value="truck">貨物用あり</option>
+          <option value="bike">二輪車</option>
+        </select>
+      </label>
       <p class="fnote" id="fnote"></p>
+      <div class="factions">
+        <button class="btn" id="freset" type="button">条件をクリア</button>
+        <button class="btn primary" id="fdone" type="button"><span id="n2">0</span> 区間を表示</button>
+      </div>
     </div>
-    <div class="tally"><span><b id="n">0</b> 区間</span><span class="sortctl"><span class="sortnote" id="sortnote"></span><select id="sort" aria-label="並べ方"><option value="near">近い順</option><option value="area">エリアごと</option></select></span></div>
-    <ul class="list" id="list"></ul>
-  </aside>
+  </div>
 
-  <main class="mapwrap">
-    <div id="map"></div>
-    <div class="mapbtns">
-      <button class="mapbtn" id="locate" title="現在地"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
-      <button class="mapbtn" id="fitall" title="全体を表示"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
-    </div>
-    <div class="legend">
-      <div class="lrow"><span class="k meter"></span>パーキング・メーター</div>
-      <div class="lrow"><span class="k ticket"></span>パーキング・チケット</div>
-    </div>
-  </main>
-</div>
+  <div class="mapbtns">
+    <button class="mapbtn" id="locate" title="現在地"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+  </div>
+  <div class="legend">
+    <div class="lrow"><span class="k meter"></span>メーター</div>
+    <div class="lrow"><span class="k ticket"></span>チケット</div>
+  </div>
+</main>
+
+<aside class="listpanel" id="listpanel" aria-label="一覧" hidden>
+  <div class="listhead">
+    <h2>一覧 <small><span id="n3">0</span> 区間</small></h2>
+    <button class="close" id="listClose" aria-label="一覧を閉じる">×</button>
+  </div>
+  <div class="listsort">
+    <span class="sortnote" id="sortnote"></span>
+    <select id="sort" aria-label="並べ方"><option value="near">近い順</option><option value="area">エリアごと</option></select>
+  </div>
+  <ul class="list" id="list"></ul>
+</aside>
 
 <div class="empty" id="empty" hidden>
   <div class="card">
