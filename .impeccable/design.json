@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-27T14:57:52+00:00",
+  "generatedAt": "2026-09-27T16:30:43+00:00",
   "title": "Design System: パーキング・メーター・マップ",
   "extensions": {
     "colorMeta": {
@@ -279,11 +279,23 @@
       },
       "caption": {
         "displayName": "Caption",
-        "purpose": "Meta, distances, legend, warnings."
+        "purpose": "Meta, distances, legend, warnings, filter note (tags at 11px)."
       },
       "overline": {
         "displayName": "Overline",
         "purpose": "The single Latin-caps sub-label above the title."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Filter toggle and pill buttons."
+      },
+      "input": {
+        "displayName": "Input",
+        "purpose": "Search and touch-screen dropdowns; 16px so iOS never zooms."
+      },
+      "tag": {
+        "displayName": "Tag",
+        "purpose": "Small outline labels beside list names."
       }
     },
     "shadows": [
@@ -355,7 +367,7 @@
       "refersTo": "badge-daily",
       "description": "Day class and kind badges in the details panel.",
       "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-daily\">土日・祝日も使える</span><span class=\"ds-badge ds-closed\">日曜・祝日は除く</span><span class=\"ds-badge ds-kind\">パーキング・チケット</span></div>",
-      "css": ".ds-badges{font-family:\"Zen Kaku Gothic New\",\"Hiragino Sans\",system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:6px}.ds-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;color:var(--surface,#FBFCFD)}.ds-daily{background:var(--daily,#1B8A4B)}.ds-closed{background:var(--closed,#1F63C6)}.ds-kind{background:transparent;color:var(--ink-2,#3B4756);border:1px solid var(--line,#CBD3DC)}"
+      "css": ".ds-badges{font-family:\"Zen Kaku Gothic New\",\"Hiragino Sans\",system-ui,sans-serif;display:flex;flex-wrap:wrap;gap:6px}.ds-badge{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;padding:3px 9px;border-radius:999px;color:var(--surface,#FBFCFD)}.ds-daily{background:var(--daily,#1B8A4B)}.ds-closed{background:var(--closed,#1F63C6)}.ds-kind{background:transparent;color:var(--ink-2,#3B4756);border:1px solid var(--line,#CBD3DC)}"
     },
     {
       "name": "List Row",
@@ -383,7 +395,7 @@
   ],
   "narrative": {
     "northStar": "The Kerbside Signboard",
-    "overview": "The interface works like a well-made Japanese road sign. It is calm, plainly worded, legible from arm's length, and it never competes with the street it describes. The map is the street. The coloured lines drawn on it (green, blue, solid, dashed) are the only loud things on screen, and every piece of chrome exists to point at them. Everything else is navy, near-white and grey, set in one plain Japanese gothic typeface.\n\nThe design is dense but not crowded. Panels float over the map as white signboards with thin grey rules, and they never cover more of the map than the task needs. On a phone the details panel opens as a sheet from the bottom, and the selected section is kept visible above it. There are light and dark themes. Dark is a night-road version with the same roles, not a different identity.\n\nThe direction is **crisp and utilitarian**. The incumbent system uses soft floating shadows and pill-shaped buttons. Future work should push toward flatter, tool-like surfaces: 1px lines before shadows, tighter radii before rounder ones, and no decoration that doesn't carry information.",
+    "overview": "The interface works like a well-made Japanese road sign. It is calm, plainly worded, legible from arm's length, and it never competes with the street it describes. The map is the street. The coloured lines drawn on it (green, blue, solid, dashed) are the only loud things on screen, and every piece of chrome exists to point at them. Everything else is navy, near-white and grey, set in one plain Japanese gothic typeface.\n\nThe design is dense but not crowded. Panels float over the map as white signboards with thin grey rules, and they never cover more of the map than the task needs. On a phone the details panel opens as a sheet from the bottom, and the selected section is kept visible above it. There are light and dark themes. Dark is a night-road version with the same roles, not a different identity. Leaflet's own chrome (zoom, attribution, hover labels) is themed from the same tokens, and when there is no CARTO key the light OpenStreetMap tiles are colour-inverted so the map goes dark too.\n\nThe direction is **crisp and utilitarian**. The incumbent system uses soft floating shadows and pill-shaped buttons. Future work should push toward flatter, tool-like surfaces: 1px lines before shadows, tighter radii before rounder ones, and no decoration that doesn't carry information.",
     "keyCharacteristics": [
       "The map is the hero; the chrome is signage around it.",
       "Colour means data. Green and blue say which days a section can be used; solid and dashed say meter or ticket.",
@@ -443,13 +455,14 @@
       "**Do** keep the map visible and dominant on first load (the Map-First Rule).",
       "**Do** use Weekend Green, Weekday Blue and dashed versus solid lines only for their documented meanings, with the same meaning on the map, in the legend and on the badges.",
       "**Do** separate surfaces with a 1px Lane Line (#CBD3DC) first; reach for the single map-float shadow only over the map.",
-      "**Do** keep tap targets at 44px or more, and inputs at 16px or more so iOS doesn't zoom in.",
+      "**Do** keep tap targets at 44px or more, and inputs and dropdowns at 16px or more on touch screens so iOS doesn't zoom in.",
       "**Do** define every colour for both themes through the `:root` custom properties, and keep dark mode a straight re-mapping of the same roles.",
       "**Do** show the accuracy warning in Caution Amber on Caution Wash wherever section details appear."
     ],
     "donts": [
       "**Don't** use Meter-Plate Blue for data, or Weekday Blue for brand or actions (the Two-Blues Rule).",
       "**Don't** add a second typeface, a monospace face, or letter-spacing on Japanese text.",
+      "**Don't** use text characters (×, ✓, →) or emoji as icons; draw them as inline SVG in the same 2px stroke.",
       "**Don't** introduce new shadows, gradients, glows or coloured shadows. There is one shadow, and it means \"floats over the map\".",
       "**Don't** make chrome louder than the zone lines. No saturated fills on panels and no decorative illustration over the map.",
       "**Don't** round things further than the existing radius scale.",

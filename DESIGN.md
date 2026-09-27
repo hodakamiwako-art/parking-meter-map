@@ -48,12 +48,25 @@ typography:
     fontSize: "12px"
     fontWeight: 400
     lineHeight: 1.55
+  button:
+    fontFamily: "Zen Kaku Gothic New, Hiragino Sans, system-ui, sans-serif"
+    fontSize: "14px"
+    fontWeight: 700
+  input:
+    fontFamily: "Zen Kaku Gothic New, Hiragino Sans, system-ui, sans-serif"
+    fontSize: "16px"
+    fontWeight: 400
+  tag:
+    fontFamily: "Zen Kaku Gothic New, Hiragino Sans, system-ui, sans-serif"
+    fontSize: "11px"
+    fontWeight: 500
   overline:
     fontFamily: "Zen Kaku Gothic New, Hiragino Sans, system-ui, sans-serif"
     fontSize: "10px"
     fontWeight: 500
     letterSpacing: "0.14em"
 rounded:
+  key: "3px"
   tag: "4px"
   sm: "8px"
   md: "10px"
@@ -143,7 +156,7 @@ components:
 
 The interface works like a well-made Japanese road sign. It is calm, plainly worded, legible from arm's length, and it never competes with the street it describes. The map is the street. The coloured lines drawn on it (green, blue, solid, dashed) are the only loud things on screen, and every piece of chrome exists to point at them. Everything else is navy, near-white and grey, set in one plain Japanese gothic typeface.
 
-The design is dense but not crowded. Panels float over the map as white signboards with thin grey rules, and they never cover more of the map than the task needs. On a phone the details panel opens as a sheet from the bottom, and the selected section is kept visible above it. There are light and dark themes. Dark is a night-road version with the same roles, not a different identity.
+The design is dense but not crowded. Panels float over the map as white signboards with thin grey rules, and they never cover more of the map than the task needs. On a phone the details panel opens as a sheet from the bottom, and the selected section is kept visible above it. There are light and dark themes. Dark is a night-road version with the same roles, not a different identity. Leaflet's own chrome (zoom, attribution, hover labels) is themed from the same tokens, and when there is no CARTO key the light OpenStreetMap tiles are colour-inverted so the map goes dark too.
 
 The direction is **crisp and utilitarian**. The incumbent system uses soft floating shadows and pill-shaped buttons. Future work should push toward flatter, tool-like surfaces: 1px lines before shadows, tighter radii before rounder ones, and no decoration that doesn't carry information.
 
@@ -200,9 +213,11 @@ A cool, near-monochrome road palette of navy, overcast grey and signboard white.
 - **Headline** (700, 19px, 1.35): the section heading in the details panel, usually the address.
 - **Title** (700, 15px): list-row names, filter toggle, primary button text. Also used at 17px for the list panel heading.
 - **Body** (400, 15px, 1.55): base text, the details list, menu items. Inputs use 16px so iOS doesn't zoom in on focus.
+- **Button** (700, 14px): filter toggle and pill buttons.
+- **Input** (400, 16px): search, and dropdowns on touch screens, so iOS never zooms in.
 - **Label** (400, 13px): filter labels, result count, sort control, group headers (at 700).
-- **Caption** (400, 12px): list meta, distances, warnings, the legend.
-- **Overline** (500, 10px, 0.14em tracking, Latin caps): the single 「ON-STREET PARKING · JAPAN」 line above the title. Badges use a relative of this: 700, 11px, 0.04em.
+- **Caption** (400, 12px): list meta, distances, warnings, the legend, the filter note. Tags are the one step below, at 11px (500).
+- **Overline** (500, 10px, 0.14em tracking, Latin caps): the single 「ON-STREET PARKING · JAPAN」 line above the title. Badges use a relative of this: 700, 12px, 0.04em.
 
 ### Named Rules
 **The One-Typeface Rule.** Zen Kaku Gothic New only. Numbers that line up in columns (distances) use `font-variant-numeric: tabular-nums`, not a monospace font.
@@ -214,13 +229,13 @@ A cool, near-monochrome road palette of navy, overcast grey and signboard white.
 The map fills the whole screen below a 56px header bar. All other UI floats over the map at a 12px inset from the edges:
 
 - **Top left:** a stack 400px wide at most (`min(400px, 100% − 24px)`). It holds the search field, then a row with the filter toggle and the result count, then the filter panel when it's open.
-- **Bottom left:** the legend, as a 2×2 grid.
-- **Bottom right:** the locate button above Leaflet's zoom control.
+- **Bottom left:** the legend, as a 2×2 grid. It sits 12px above the attribution and follows its real height, however many lines it wraps to.
+- **Bottom right:** the locate button, stacked directly above the zoom control inside Leaflet's own control corner, so the stack always clears the attribution.
 - **Right side:** the details panel, 380px wide, slides in from the right.
 - **Left edge:** the list panel, 400px wide, opens from the menu. On wide screens the search stack and legend move right to make room (`left: 412px`).
 
 There is one breakpoint, at **760px**.
-- **Phones:** the list panel covers the full width. The details panel becomes a bottom sheet, at most 58% of the viewport high, and respects `safe-area-inset-bottom`. The legend moves up so it clears the two-line attribution.
+- **Phones:** the list panel covers the full width. The details panel becomes a bottom sheet, at most 58% of the viewport high, and respects `safe-area-inset-bottom`. The filter panel's height uses `dvh`, so iOS toolbars never hide its buttons.
 
 Spacing runs 4 / 8 / 12 / 16 / 20px. The inner spacing of panels is 14–20px. List rows are 11px × 16px. Filter rows split into a fixed `5.5em` label column and a flexible control column, with a 1px rule between rows.
 
@@ -231,7 +246,7 @@ Spacing runs 4 / 8 / 12 / 16 / 20px. The inner spacing of panels is 14–20px. L
 This is a hybrid system. The panels are flat signboards (1px Lane Line border, no gradients). Every element floating over the map also has one shared shadow that separates it from the busy map tiles. Elements anchored in the page (the header, rows inside panels) have no shadow; the header has only a bottom rule.
 
 ### Shadow Vocabulary
-- **Map float** (`box-shadow: 0 1px 2px rgba(20,27,36,.06), 0 8px 24px rgba(20,27,36,.10)`): the only shadow in the system. It is used on the search field, filter toggle, count pill, filter panel, map buttons, legend, menu, list panel and details panel. Dark: `0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4)`.
+- **Map float** (`box-shadow: 0 1px 2px rgba(20,27,36,.06), 0 8px 24px rgba(20,27,36,.10)`): the only shadow in the system. It is used on the search field, filter toggle, count pill, filter panel, locate button, zoom control, legend, menu, list panel and details panel. Dark: `0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.4)`.
 
 ### Named Rules
 **The One-Shadow Rule.** There is exactly one shadow, and it means "this floats over the map". Never add a second, larger or coloured shadow.
@@ -261,13 +276,14 @@ Plain, sturdy, pill-shaped.
 - **Shape:** full pill (999px).
 - **Primary:** Meter-Plate Blue fill with Signboard White bold text, 9px × 16px. There is one per view, for the main "show results" action.
 - **Secondary:** Signboard White with a 1px Lane Line border and Asphalt Ink text. Used for 「条件をクリア」 and the directions links.
-- **Close / icon:** a 40–44px square with a 10px radius, transparent at rest and Pavement Grey on hover.
+- **Close / icon:** a 44px square with a 10px radius holding a drawn 22px × (two 2px strokes, like every other icon). Faded Paint at rest; Asphalt Ink on Pavement Grey on hover.
+- **Focus:** every control shows a 2px Meter-Plate Blue ring (`:focus-visible`, 2px offset; inset on list rows and the map). Text selection uses Meter-Plate Wash, and native controls and scrollbars take their colours from the palette.
 
 ### Chips (filter toggle, count, badges)
 - **Filter toggle:** a white pill with a 1px rule, an 18px icon and bold 14px text. When open it becomes Meter-Plate Blue with white text. It carries a 20px round count showing how many filters are active.
 - **Count pill:** 13px Kerb Grey text on white, with the number in Asphalt Ink bold.
-- **Day badges:** 11px bold text in Weekend Green or Weekday Blue with white text. The "kind" badge is an outline pill in Kerb Grey.
-- **Tag:** a tiny 10px outline label with a 4px radius, placed next to list names.
+- **Day badges:** 12px bold text in Weekend Green or Weekday Blue with white text. The "kind" badge is an outline pill in Kerb Grey.
+- **Tag:** a small 11px outline label with a 4px radius, placed next to list names.
 
 ### Cards / Containers
 - **Corner Style:** 14px, or 18px across the top only for the bottom sheet.
@@ -277,11 +293,12 @@ Plain, sturdy, pill-shaped.
 - **Internal Padding:** 14–20px.
 
 ### Inputs / Fields
-- **Search:** a white field 44px tall with a 12px radius, a 1px rule and an 18px Faded Paint magnifier. The text is 16px with no inner border and no focus outline; the field itself is the affordance.
+- **Search:** a white field 44px tall with a 12px radius, a 1px rule and an 18px Faded Paint magnifier. The text is 16px with no inner border. On focus the whole field is the ring: the border and magnifier turn Meter-Plate Blue (about 2px), and the caret is Meter-Plate Blue too.
 - **Selects:** 1px Lane Line border, 8px radius, 8px padding, 15px text. Disabled selects drop to 45% opacity.
 
 ### Navigation
 - **Header:** 56px, Signboard White with a bottom rule. It holds the overline and title on the left and a 44px hamburger on the right.
+- **Map controls:** the zoom bar matches the locate button: 44px keys in one Signboard White bar with a 12px radius, a Lane Line border and the map-float shadow. The attribution is a translucent Signboard White strip with Faded Paint text and Meter-Plate Blue links.
 - **Menu:** a 220px dropdown panel, 12px radius, with a 6px inner gutter. Items are 12px-padded rows with a 20px Faded Paint icon and 15px text, and turn Pavement Grey on hover.
 
 ### Zone Line (signature component)
@@ -296,13 +313,14 @@ It opens with a 0.2s ease slide: from the right on desktop, from the bottom on p
 - **Do** keep the map visible and dominant on first load (the Map-First Rule).
 - **Do** use Weekend Green, Weekday Blue and dashed versus solid lines only for their documented meanings, with the same meaning on the map, in the legend and on the badges.
 - **Do** separate surfaces with a 1px Lane Line (#CBD3DC) first; reach for the single map-float shadow only over the map.
-- **Do** keep tap targets at 44px or more, and inputs at 16px or more so iOS doesn't zoom in.
+- **Do** keep tap targets at 44px or more, and inputs and dropdowns at 16px or more on touch screens so iOS doesn't zoom in.
 - **Do** define every colour for both themes through the `:root` custom properties, and keep dark mode a straight re-mapping of the same roles.
 - **Do** show the accuracy warning in Caution Amber on Caution Wash wherever section details appear.
 
 ### Don't:
 - **Don't** use Meter-Plate Blue for data, or Weekday Blue for brand or actions (the Two-Blues Rule).
 - **Don't** add a second typeface, a monospace face, or letter-spacing on Japanese text.
+- **Don't** use text characters (×, ✓, →) or emoji as icons; draw them as inline SVG in the same 2px stroke.
 - **Don't** introduce new shadows, gradients, glows or coloured shadows. There is one shadow, and it means "floats over the map".
 - **Don't** make chrome louder than the zone lines. No saturated fills on panels and no decorative illustration over the map.
 - **Don't** round things further than the existing radius scale.

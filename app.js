@@ -135,6 +135,7 @@ const vehicles = z => (z.truckOnly ? '貨物車専用（積載量5トン未満�
   : [z.car && '普通車', z.truck && '貨物用あり', z.bike && '二輪車'].filter(Boolean).join('・'));
 
 /* ---------- 絞り込みと一覧 ---------- */
+let shownKey = ''; // いま地図に描いている区間の顔ぶれ
 function applyFilters() {
   const now = new Date();
   shown = zones.filter(z => {
@@ -159,7 +160,9 @@ function applyFilters() {
   const active = FILTERS.filter(k => state[k]).length;
   $('#fcount').textContent = active;
   $('#fcount').hidden = !active;
-  draw();
+  // 1分ごとの「いま使える」見直しなどで顔ぶれが変わらなければ、線を描き直さない
+  const key = shown.map(z => z.id).join();
+  if (key !== shownKey) { shownKey = key; draw(); }
   if (listOpen()) renderList();
 }
 
@@ -246,7 +249,7 @@ function openDetail(z, fly = true) {
   const open = Zones.openNow(z, today, holidays.dates);
   const holiday = holidays.dates[Zones.ymd(today)];
   $('#detail').innerHTML = `
-    <button class="close" aria-label="閉じる">×</button>
+    <button class="close" aria-label="閉じる"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="badges"><span class="badge ${dayClass(z)}">${z.days === 'daily' ? '土日・祝日も使える' : z.days === 'weekday' ? '土・日・祝日は除く' : '日曜・祝日は除く'}</span><span class="badge kind">${KIND[z.kind]}</span></div>
     <h2 tabindex="-1">${esc(terms(z))}</h2>
     <dl>
