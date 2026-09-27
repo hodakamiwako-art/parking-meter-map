@@ -55,7 +55,18 @@
           <option value="bike">二輪車</option>
         </select>
       </div>
-      <label class="chk"><input type="checkbox" id="nowonly"><span>いま利用時間内だけ<small>（祝日は判定しません）</small></span></label>
+      <div class="selrow">
+        <select id="days" aria-label="曜日">
+          <option value="">曜日：すべて</option>
+          <option value="daily">土日・祝日も使える</option>
+          <option value="closed">日曜・祝日は除く</option>
+        </select>
+        <select id="at" aria-label="時間帯">
+          <option value="">時間帯：すべて</option>
+          <option value="now">いま使える</option>
+        </select>
+      </div>
+      <p class="fnote" id="fnote"></p>
     </div>
     <div class="tally"><span><b id="n">0</b> 区間</span><span class="sortctl"><span class="sortnote" id="sortnote"></span><select id="sort" aria-label="並べ方"><option value="near">近い順</option><option value="area">エリアごと</option></select></span></div>
     <ul class="list" id="list"></ul>

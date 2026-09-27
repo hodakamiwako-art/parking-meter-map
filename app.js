@@ -35,8 +35,9 @@ const MUNI = {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { kind: '', ward: '', town: '', limit: '', vehicle: '', now: false, sort: 'near', here: null, sel: null };
+const state = { kind: '', ward: '', town: '', limit: '', vehicle: '', days: '', at: '', sort: 'near', here: null, sel: null };
 let zones = [];
+let holidays = { years: [], dates: {} }; // data/holidays.json
 let shown = [];
 let map, tiles, layer, hereMark, placeMark;
 const drawn = new Map(); // id → polyline 群
@@ -119,7 +120,9 @@ function applyFilters() {
     }
     if (state.vehicle === 'truck' && !z.truck) return false;
     if (state.vehicle === 'bike' && !z.bike) return false;
-    if (state.now && !Zones.openNow(z, now)) return false;
+    if (state.days === 'daily' && z.days !== 'daily') return false;
+    if (state.days === 'closed' && z.days === 'daily') return false;
+    if (state.at === 'now' ? !Zones.openNow(z, now, holidays.dates) : state.at && !Zones.usableAt(z, +state.at)) return false;
     return true;
   });
   $('#n').textContent = shown.length.toLocaleString();
@@ -161,11 +164,11 @@ function renderList() {
     $('#list').innerHTML = rows.map(({ z, d }) => listItem(z, d)).join('') || '<li class="none">条件に合う区間はありません</li>';
     return;
   }
-  // エリアごと：区市町村（区間の多い順）→ 町名（五十音順）→ 近い順
-  const wardN = count(shown, 'ward');
+  // エリアごと：区市町村（区を選んでいれば町名）を区間の多い順に並べ、その中は近い順
   const key = z => (state.ward ? z.town : z.ward) || '住所未取得';
-  rows.sort((a, b) => (state.ward ? 0 : wardN[b.z.ward] - wardN[a.z.ward])
-    || key(a.z).localeCompare(key(b.z), 'ja') || a.d - b.d);
+  const n = {};
+  rows.forEach(r => { n[key(r.z)] = (n[key(r.z)] || 0) + 1; });
+  rows.sort((a, b) => n[key(b.z)] - n[key(a.z)] || key(a.z).localeCompare(key(b.z), 'ja') || a.d - b.d);
   const groups = new Map();
   rows.forEach(r => { const k = key(r.z); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
   $('#list').innerHTML = [...groups].map(([k, rs]) => `
@@ -198,7 +201,9 @@ function openDetail(z, fly = true) {
   }
   const row = (k, v, id) => (v ? `<dt>${k}</dt><dd${id ? ` id="${id}"` : ''}>${esc(v)}</dd>` : '');
   const [lat, lng] = z.center;
-  const open = Zones.openNow(z);
+  const today = new Date();
+  const open = Zones.openNow(z, today, holidays.dates);
+  const holiday = holidays.dates[Zones.ymd(today)];
   $('#detail').innerHTML = `
     <button class="close" aria-label="閉じる">×</button>
     <div class="badge ${z.kind}">${KIND[z.kind]}</div>
@@ -209,7 +214,7 @@ function openDetail(z, fly = true) {
       ${row('料金', fmtFee(z) && `${fmtFee(z)}（${fmtLimit(z) || '1回'}）`)}
       ${row('利用時間', z.hours)}
       ${row('除く日', z.rules.join('、'))}
-      ${row('いま', open ? '利用時間内' : '利用時間外（祝日は判定していません）')}
+      ${row('いま', (open ? '利用時間内' : '利用時間外') + (holiday ? `（今日は${holiday}）` : holidayKnown() ? '' : '（祝日は判定していません）'))}
       ${row('車種', vehicles(z))}
       ${z.permitOnly ? row('注意', '標章車（障害者等用）専用の枠があります') : ''}
       ${row('区間番号', z.id)}
@@ -259,6 +264,27 @@ async function goPlace(q) {
   }
 }
 
+/* ---------- 祝日 ---------- */
+const holidayKnown = (d = new Date()) => holidays.years.includes(d.getFullYear());
+function holidayNote() {
+  const h = holidays.dates[Zones.ymd(new Date())];
+  $('#fnote').textContent = h ? `今日は${h}です。「いま使える」は祝日を除く区間を外しています。`
+    : holidayKnown() ? '「いま使える」は曜日・祝日・正月まで見ます。'
+    : '「いま使える」は曜日と正月まで見ます。祝日は判定しません。';
+}
+
+/* ---------- 時間帯の選択肢 ---------- */
+function fillHours() {
+  // データにある利用時間の範囲（最も早い開始〜最も遅い終了）で1時間ごとに出す
+  const spans = zones.map(z => z.span).filter(Boolean);
+  if (!spans.length) return;
+  const from = Math.floor(Math.min(...spans.map(s => s[0])) / 60);
+  const to = Math.ceil(Math.max(...spans.map(s => s[1])) / 60);
+  let opts = '<option value="">時間帯：すべて</option><option value="now">いま使える</option>';
+  for (let h = from; h < to; h++) opts += `<option value="${h * 60}">${h}:00 に使える</option>`;
+  $('#at').innerHTML = opts;
+}
+
 /* ---------- エリアの選択肢 ---------- */
 function count(list, k) {
   const n = {};
@@ -277,7 +303,7 @@ function fillWards() {
 
 function fillTowns() {
   const n = count(zones.filter(z => z.ward === state.ward), 'town');
-  const towns = Object.keys(n).sort((a, b) => a.localeCompare(b, 'ja'));
+  const towns = Object.keys(n).sort((a, b) => n[b] - n[a] || a.localeCompare(b, 'ja'));
   $('#town').innerHTML = '<option value="">町名：すべて</option>' +
     towns.map(t => `<option value="${esc(t)}">${esc(t)}（${n[t]}）</option>`).join('');
   $('#town').disabled = !state.ward;
@@ -314,7 +340,8 @@ function bind() {
   $('#sort').addEventListener('change', e => { state.sort = e.target.value; renderList(); });
   $('#limit').addEventListener('change', e => { state.limit = e.target.value; applyFilters(); });
   $('#vehicle').addEventListener('change', e => { state.vehicle = e.target.value; applyFilters(); });
-  $('#nowonly').addEventListener('change', e => { state.now = e.target.checked; applyFilters(); });
+  $('#days').addEventListener('change', e => { state.days = e.target.value; applyFilters(); });
+  $('#at').addEventListener('change', e => { state.at = e.target.value; applyFilters(); });
   $('#list').addEventListener('click', e => {
     const li = e.target.closest('li[data-id]');
     if (li) openDetail(zones.find(z => z.id === li.dataset.id));
@@ -333,8 +360,8 @@ function bind() {
   $('#tabList').addEventListener('click', () => showTab('list'));
   $('#tabMap').addEventListener('click', () => showTab('map'));
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
-  // 「いま利用時間内」は時間が進むと変わるので、1分ごとに見直す
-  setInterval(() => { if (state.now) applyFilters(); }, 60000);
+  // 「いま使える」は時間が進むと変わるので、1分ごとに見直す
+  setInterval(() => { holidayNote(); if (state.at === 'now') applyFilters(); }, 60000);
 }
 
 async function boot() {
@@ -348,7 +375,12 @@ async function boot() {
     $('#empty').hidden = false;
     return;
   }
+  try {
+    holidays = await (await fetch('data/holidays.json')).json();
+  } catch (e) { /* 祝日一覧がなくても動く（祝日を判定しないだけ） */ }
+  holidayNote();
   fillWards();
+  fillHours();
   applyFilters();
   fitAll();
 }

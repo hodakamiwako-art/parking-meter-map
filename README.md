@@ -11,7 +11,9 @@
 - **地名・駅名で移動**（例：銀座、新宿駅）。国土地理院の地名検索を使っています
 - **エリア（区市町村 → 町名）で絞り込み**。一覧は「近い順」と「エリアごと」（見出しつき）で切り替え
 - 種類（メーター／チケット）、制限時間（20分・40分まで）、車種（貨物用あり・二輪車）で絞り込み
-- **いま利用時間内の区間だけ**に絞り込み（曜日と正月は判定。祝日は判定しません）
+- **曜日**で絞り込み：「土日・祝日も使える」（250区間）／「日曜・祝日は除く」（502区間）
+- **時間帯**で絞り込み：「いま使える」、または「8:00 に使える」「20:00 に使える」など1時間ごと
+  - 「いま使える」は曜日・祝日・正月まで判定します。祝日は `data/holidays.json`（2026〜2027年）で見ています
 - 区間を選ぶと、住所（国土地理院の逆引き）・制限時間・料金・利用時間・除く日・車種を表示し、**Googleマップで経路**を開ける
 - スマホでは「一覧」「地図」をタブで切り替え。ダークテーマ対応
 
@@ -38,6 +40,7 @@
 python3 build/build.py --fetch --geocode   # 取り直して、新しい区間の住所を逆引きしてから作る
 python3 build/build.py --fetch   # parking-meter.jp から取り直して data/zones.geojson を作る
 python3 build/build.py           # build/source/ の手元の元データから作り直す
+python3 build/build.py --holidays   # 内閣府の祝日一覧から data/holidays.json を作り直す（年に一度）
 ```
 
 線の形は KML、属性は CSV から取ります（同じ識別idでは更新が新しい CSV を優先）。
@@ -52,6 +55,7 @@ zones.js          GeoJSON をアプリの形にそろえる
 styles.css        スタイル（ライト／ダーク対応）
 config.js         地図タイル（CARTO）の鍵。空なら OpenStreetMap
 data/zones.geojson  752区間（build/build.py が作る）
+data/holidays.json  祝日一覧（「いま使える」の判定に使う）
 build/            データを作るスクリプトと元データ
 vendor/           Leaflet 1.9.4
 ```
@@ -68,6 +72,7 @@ vendor/           Leaflet 1.9.4
 
 - 区間データ — 警視庁 時間制限駐車区間案内地図 オープンデータ（CC BY 4.0）
 - 地名検索・住所の逆引き — [国土地理院](https://www.gsi.go.jp/)
+- 祝日 — [内閣府「国民の祝日」](https://www8.cao.go.jp/chosei/shukujitsu/gaiyou.html)
 - 地図タイル — OpenStreetMap contributors / CARTO
 
 ## ライセンス

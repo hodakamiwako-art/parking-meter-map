@@ -43,6 +43,8 @@
         limitMin: num(p['制限時間']),
         feeYen: num(p['手数料']),
         rules: [p['制限事項1'], p['制限事項2']].filter(Boolean).map(z2h),
+        // 曜日の区分：毎日（土日祝も）／日曜・休日は除く／土・日曜・休日は除く
+        days: /土/.test(p['制限事項1']) ? 'weekday' : /日曜|休日/.test(p['制限事項1']) ? 'nosun' : 'daily',
         car: !!p['普通車'],
         truck: !!p['貨物用有り'],
         bike: !!p['二輪車'],
@@ -58,17 +60,21 @@
   }
 
   /* いま利用時間内か。「日曜・休日を除く」「土・日曜、休日を除く」「1月1日〜3日を除く」を見る。
-     祝日の暦は持っていないので、祝日は判定しない（画面にもそう書く）。 */
-  function openNow(z, now = new Date()) {
+     祝日は data/holidays.json の一覧で判定する（一覧にない年は判定しない）。 */
+  const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  function openNow(z, now = new Date(), holidays = {}) {
     if (!z.span) return false;
     const rules = z.rules.join(' ');
     const dow = now.getDay();
     if (dow === 0 && /日曜/.test(rules)) return false;
     if (dow === 6 && /土/.test(rules)) return false;
+    if (z.days !== 'daily' && holidays[ymd(now)]) return false;
     if (now.getMonth() === 0 && now.getDate() <= 3 && /1月1日/.test(rules)) return false;
-    const t = now.getHours() * 60 + now.getMinutes();
-    return t >= z.span[0] && t < z.span[1];
+    return usableAt(z, now.getHours() * 60 + now.getMinutes());
   }
 
-  window.Zones = { normalize, openNow };
+  // その時刻（0時からの分）が利用時間に入っているか。曜日は見ない
+  const usableAt = (z, t) => !!z.span && t >= z.span[0] && t < z.span[1];
+
+  window.Zones = { normalize, openNow, usableAt, ymd };
 })();

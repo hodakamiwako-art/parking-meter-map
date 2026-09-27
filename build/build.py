@@ -3,6 +3,7 @@
     python3 build/build.py            # build/source/ にある元データから作る
     python3 build/build.py --fetch    # 先に parking-meter.jp から最新版を取り直す
     python3 build/build.py --geocode  # 住所がまだない区間を国土地理院で逆引きしてから作る
+    python3 build/build.py --holidays # 内閣府の祝日一覧から data/holidays.json を作り直す
 
 線の形は KML（parkingmeter.kml.zip）、属性は CSV（parkingmeter_attr.csv）から取る。
 CSV のほうが更新が新しいので、同じ識別idでは CSV の値を優先する。
@@ -22,6 +23,8 @@ OUT = ROOT / 'data' / 'zones.geojson'
 BASE = 'https://parking-meter.jp/'
 FILES = ['parkingmeter.kml.zip', 'parkingmeter_attr.csv']
 NS = {'k': 'http://www.opengis.net/kml/2.2'}
+HOLIDAYS = ROOT / 'data' / 'holidays.json'
+HOLIDAYS_CSV = 'https://www8.cao.go.jp/chosei/shukujitsu/syukujitsu.csv'
 GEOCODE = SRC / 'geocode.json'
 REVERSE = 'https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat={lat}&lon={lng}'
 # 逆引きは市区町村コードで返るので、都内の区市の名前を引く
@@ -72,6 +75,23 @@ def geocode(feats):
     return cache
 
 
+def holidays():
+    """「日曜・休日を除く」区間の判定に使う祝日一覧。今年以降の分だけ残す"""
+    with urllib.request.urlopen(HOLIDAYS_CSV, timeout=20) as r:
+        text = r.read().decode('cp932')
+    this_year = time.localtime().tm_year
+    dates = {}
+    for line in text.splitlines()[1:]:
+        d, _, name = line.partition(',')
+        y, m, dd = (int(x) for x in d.split('/'))
+        if y >= this_year:
+            dates[f'{y:04d}-{m:02d}-{dd:02d}'] = name.strip()
+    years = sorted({int(d[:4]) for d in dates})
+    HOLIDAYS.write_text(json.dumps({'source': '内閣府「国民の祝日」（build/build.py --holidays で取り直せます）',
+                                    'years': years, 'dates': dates}, ensure_ascii=False, indent=1), encoding='utf-8')
+    print(f'{len(dates)} holidays ({years[0]}-{years[-1]}) -> {HOLIDAYS.relative_to(ROOT)}')
+
+
 def value(k, v):
     v = (v or '').strip()
     if k in INTS and v.lstrip('-').isdigit():
@@ -82,6 +102,8 @@ def value(k, v):
 def main():
     if '--fetch' in sys.argv:
         fetch()
+    if '--holidays' in sys.argv:
+        holidays()
     with zipfile.ZipFile(SRC / 'parkingmeter.kml.zip') as z:
         name = next(n for n in z.namelist() if n.endswith('.kml'))
         root = ET.fromstring(z.read(name))
