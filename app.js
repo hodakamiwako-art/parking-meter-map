@@ -36,7 +36,11 @@ const MUNI = {
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const state = { pref: '', ward: '', town: '', days: '', at: '', limit: '', vehicle: '', sort: 'near', here: null, sel: null };
+const state = { pref: '', ward: '', town: '', days: '', at: '', limit: '', vehicle: '', sort: 'near', here: null, sel: null,
+  // 運転モード：follow＝地図が現在地を追う、place＝検索した場所、pick＝カードで選んだ区間
+  follow: true, place: null, pick: null };
+const drive = () => document.body.classList.contains('drive');
+const IOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 // 条件入力の項目（画面の並び順）。数えるのとクリアに使う
 const FILTERS = ['pref', 'ward', 'town', 'days', 'at', 'limit', 'vehicle'];
 let zones = [];
@@ -58,14 +62,16 @@ function setTiles() {
 
 function initMap() {
   map = L.map('map', { center: TOKYO, zoom: 13, zoomControl: false, minZoom: 6, maxZoom: 21, preferCanvas: true });
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  map.zoomCtl = L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.addAttribution(SRC_ATTR);
   setTiles();
   darkQ.addEventListener?.('change', () => { setTiles(); draw(); });
   layer = L.layerGroup().addTo(map);
   // 現在地・検索した場所の印は、区間の線を描き直しても隠れないよう別の層に置く
   map.createPane('marks').style.zIndex = 450;
-  map.on('moveend', () => { if (!state.here && listOpen()) renderList(); });
+  map.on('moveend', () => { if (!state.here && listOpen()) renderList(); if (drive()) renderDrive(); });
+  // 指で地図を動かしたら、現在地を追うのをやめる（現在地ボタンで戻す）
+  map.on('dragstart', () => { state.follow = false; $('#locate').classList.add('off'); });
   map.on('zoomend', highlight);
 }
 
@@ -77,20 +83,23 @@ const COLORS = () => {
 const dayClass = z => (z.days === 'daily' ? 'daily' : z.days === 'unknown' ? 'unknown' : 'closed');
 // メーターは実線、チケットは破線。破線の間隔は線の太さに合わせる
 const dash = (z, w) => (z.kind === 'ticket' ? `${w} ${Math.round(w * 1.8)}` : null);
-const weight = () => Math.max(3, Math.min(9, map.getZoom() - 9));
+// 運転モードでは線を太くして、遠目にも分かるようにする
+const weight = () => Math.max(3, Math.min(9, map.getZoom() - 9)) + (drive() ? 3 : 0);
 
 function draw() {
   layer.clearLayers();
   drawn.clear();
   const col = COLORS();
   for (const z of shown) {
+    // 運転モードは「いま使える＝緑／時間不明＝灰」の2色だけ。破線（チケット）も使わない
+    const c = drive() ? (z.days === 'unknown' ? col.unknown : col.daily) : col[dayClass(z)];
     const pls = z.lines.map(l => l.length === 1
-      ? L.circleMarker(l[0], { radius: 6, color: col[dayClass(z)], weight: 2, fillOpacity: .8 })
-      : L.polyline(l, { color: col[dayClass(z)], weight: weight(), opacity: .85, lineCap: 'round', dashArray: dash(z, weight()) }));
+      ? L.circleMarker(l[0], { radius: 6, color: c, weight: 2, fillOpacity: .8 })
+      : L.polyline(l, { color: c, weight: weight(), opacity: .9, lineCap: 'round', dashArray: drive() ? null : dash(z, weight()) }));
     pls.forEach(p => { p.zone = z; });
     pls.forEach(p => {
-      p.on('click', () => openDetail(z, false));
-      p.bindTooltip(esc(title(z)), { sticky: true, direction: 'top' });
+      p.on('click', () => (drive() ? pickDrive(z) : openDetail(z, false)));
+      if (!drive()) p.bindTooltip(esc(title(z)), { sticky: true, direction: 'top' });
       layer.addLayer(p);
     });
     drawn.set(z.id, pls);
@@ -101,9 +110,10 @@ function draw() {
 function highlight() {
   drawn.forEach((pls, id) => pls.forEach(p => {
     if (p instanceof L.CircleMarker) return;
-    const w = id === state.sel ? weight() + 5 : weight();
-    p.setStyle({ weight: w, opacity: id === state.sel ? 1 : .85, dashArray: dash(p.zone, w) });
-    if (id === state.sel) p.bringToFront();
+    const on = id === (drive() ? state.pick : state.sel);
+    const w = on ? weight() + 5 : weight();
+    p.setStyle({ weight: w, opacity: on ? 1 : .85, dashArray: drive() ? null : dash(p.zone, w) });
+    if (on) p.bringToFront();
   }));
 }
 
@@ -122,6 +132,13 @@ const vehicles = z => (z.truckOnly ? '貨物車専用（積載量5トン未満�
 /* ---------- 絞り込みと一覧 ---------- */
 function applyFilters() {
   const now = new Date();
+  if (drive()) {
+    // 運転モード：条件入力は使わず、いま使える区間（と時間の分からない区間）だけ
+    shown = zones.filter(z => z.days === 'unknown' || Zones.openNow(z, now, holidays.dates));
+    draw();
+    renderDrive();
+    return;
+  }
   shown = zones.filter(z => {
     if (state.pref && z.pref !== state.pref) return false;
     if (state.ward && z.ward !== state.ward) return false;
@@ -190,6 +207,106 @@ function renderList() {
   $('#list').innerHTML = [...groups].map(([k, rs]) => `
     <li class="group" data-group="${esc(k)}"><span>${esc(state.ward ? `${state.ward} ${k}` : k)}</span><b>${rs.length}</b></li>
     ${rs.map(({ z, d }) => listItem(z, d)).join('')}`).join('') || '<li class="none">条件に合う区間はありません</li>';
+}
+
+/* ---------- 運転モードのカード ---------- */
+const DIRS = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+function bearingDeg(a, b) {
+  const k = Math.cos(a[0] * Math.PI / 180);
+  return (Math.atan2((b[1] - a[1]) * k, b[0] - a[0]) * 180 / Math.PI + 360) % 360;
+}
+// 線のうち、起点に最も近い点（区間の中ほどではなく、いちばん近いところまでの距離を出す）
+function nearestPoint(z, o) {
+  let best = z.center, bd = Infinity;
+  z.lines.flat().forEach(p => { const d = meters(o, p); if (d < bd) { bd = d; best = p; } });
+  return [best, bd];
+}
+const until = z => (z.days === 'unknown' ? '時間は現地で確認' : z.span ? `${Math.floor(z.span[1] / 60)}:${String(z.span[1] % 60).padStart(2, '0')}まで` : '');
+const routeUrl = p => (IOS ? `https://maps.apple.com/?daddr=${p[0]},${p[1]}&dirflg=d`
+  : `https://www.google.com/maps/dir/?api=1&destination=${p[0]},${p[1]}&travelmode=driving`);
+
+// 運転モードでは下のカードが地図を隠すので、カードより上の見えている範囲の中央に置く
+function centerOn(ll, zoom, animate = true) {
+  const card = drive() ? $('#drivecard').offsetHeight + 22 : 0;
+  const pt = map.project(ll, zoom).add([0, card / 2]);
+  map.setView(map.unproject(pt, zoom), zoom, { animate });
+}
+
+function driveOrigin() {
+  if (state.place) return { p: state.place, label: '検索した場所から' };
+  if (state.here) return { p: state.here, label: '' };
+  const c = map.getCenter();
+  return { p: [c.lat, c.lng], label: '地図の中心から' };
+}
+
+function renderDrive() {
+  if (!drive() || !zones.length) return;
+  const o = driveOrigin();
+  // 時間の分からない区間は、使える区間が近くにないときだけ候補にする
+  const rows = shown.map(z => { const [pt, d] = nearestPoint(z, o.p); return { z, pt, d }; })
+    .sort((a, b) => (a.z.days === 'unknown') - (b.z.days === 'unknown') || a.d - b.d);
+  const known = rows.filter(r => r.z.days !== 'unknown');
+  const top = (known.length && known[0].d < 3000 ? known : rows.sort((a, b) => a.d - b.d)).slice(0, 3);
+  if (!top.some(r => r.z.id === state.pick)) state.pick = top[0]?.z.id || null;
+  $('#drivenote').textContent = !top.length ? 'いま使える区間はありません'
+    : top[0].d > 3000 ? `近くにいま使える区間はありません（最寄り ${fmtDist(top[0].d)}）` : o.label;
+  $('#drivelist').innerHTML = top.map(({ z, d, pt }) => {
+    const deg = bearingDeg(o.p, pt);
+    return `
+    <li data-id="${esc(z.id)}" class="${z.id === state.pick ? 'on' : ''} ${z.days === 'unknown' ? 'unk' : ''}">
+      <svg class="arrow" viewBox="0 0 24 24" style="transform:rotate(${Math.round(deg)}deg)" aria-hidden="true"><path d="M12 3l6 16-6-4-6 4z"/></svg>
+      <div class="info"><b>${DIRS[Math.round(deg / 45) % 8]}へ ${fmtDist(d)}</b><span>${esc([terms(z), until(z)].filter(Boolean).join('・'))}</span></div>
+    </li>`;
+  }).join('');
+  const sel = top.find(r => r.z.id === state.pick);
+  $('#drivego').hidden = !sel;
+  if (sel) {
+    $('#drivego').href = routeUrl(sel.pt);
+    $('#drivego').textContent = `${IOS ? 'Apple' : 'Google'}マップで経路`;
+  }
+  highlight();
+}
+
+function pickDrive(z) {
+  state.pick = z.id;
+  renderDrive();
+}
+
+/* 運転モード ⇄ 詳しく探す */
+function setMode(isDrive) {
+  document.body.classList.toggle('drive', isDrive);
+  $('#menuModeText').textContent = isDrive ? '詳しく探す' : '運転モードに戻る';
+  toggleMenu(false);
+  closeSearch();
+  if (isDrive) { closeDetail(); closeList(); toggleFilters(false); map.removeControl(map.zoomCtl); }
+  else map.zoomCtl.addTo(map);
+  try { localStorage.setItem('pmm-mode', isDrive ? 'drive' : 'detail'); } catch (e) {}
+  setTimeout(() => map.invalidateSize(), 50);
+  applyFilters();
+}
+
+function openSearch() {
+  document.body.classList.add('searching');
+  $('#q').focus();
+}
+function closeSearch() {
+  document.body.classList.remove('searching');
+}
+
+/* 現在地を追いかける */
+function startWatch() {
+  if (!navigator.geolocation || startWatch.id != null) return;
+  startWatch.id = navigator.geolocation.watchPosition(p => {
+    const first = !state.here;
+    state.here = [p.coords.latitude, p.coords.longitude];
+    if (hereMark) hereMark.setLatLng(state.here);
+    else hereMark = L.circleMarker(state.here, { pane: 'marks', radius: 9, color: '#fff', weight: 3, fillColor: '#F28C28', fillOpacity: 1 }).addTo(map);
+    // 地図が追いかけるのは運転モードのとき（詳しく探すでは最初の1回だけ寄せる）
+    if (first) map.stop(); // 東京全体への移動の途中でも止めて現在地へ
+    if (drive()) renderDrive(); // 先にカードを作って高さを決める
+    if (state.follow && !state.place && (drive() || first)) centerOn(state.here, first ? 17 : Math.max(map.getZoom(), 16), !first);
+    if (listOpen()) renderList();
+  }, () => { startWatch.id = null; if (drive()) renderDrive(); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
 }
 
 /* ---------- 住所の逆引き（詳細を開いたときだけ） ---------- */
@@ -277,11 +394,15 @@ async function goPlace(q) {
     const hit = hits.find(h => /東京都|大阪府/.test(h.properties.title)) || hits[0];
     if (!hit) { note.textContent = `「${q}」は見つかりませんでした`; return; }
     const [lng, lat] = hit.geometry.coordinates;
-    state.here = null;
+    state.place = [lat, lng];
+    state.follow = false;
+    $('#locate').classList.add('off');
+    closeSearch();
     if (placeMark) map.removeLayer(placeMark);
     placeMark = L.circleMarker([lat, lng], { pane: 'marks', radius: 7, color: '#fff', weight: 3, fillColor: '#D1452E', fillOpacity: 1 })
       .bindTooltip(esc(hit.properties.title)).addTo(map);
-    map.setView([lat, lng], 16);
+    if (drive()) renderDrive();
+    centerOn([lat, lng], 16, false);
     if (listOpen()) renderList();
     note.textContent = `${hit.properties.title} の近く`;
   } catch (e) {
@@ -349,10 +470,10 @@ function fillTowns() {
 }
 
 /* ---------- 画面の組み立て ---------- */
-function fitAll(pref) {
+function fitAll(pref, animate = true) {
   const pts = shown.filter(z => !pref || z.pref === pref).flatMap(z => z.lines.flat());
   // 左上の検索・条件入力の下に隠れないよう、上側を広めにあける
-  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60] });
+  if (pts.length) map.fitBounds(L.latLngBounds(pts), { paddingTopLeft: [30, 130], paddingBottomRight: [30, 60], animate });
 }
 
 const narrow = () => window.innerWidth <= 760;
@@ -393,7 +514,14 @@ function bind() {
   $('#qform').addEventListener('submit', e => { e.preventDefault(); $('#q').blur(); goPlace($('#q').value); });
   $('#menuBtn').addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
   document.addEventListener('click', e => { if (!$('#menu').hidden && !e.target.closest('#menu')) toggleMenu(false); });
-  $('#menuList').addEventListener('click', openList);
+  $('#menuList').addEventListener('click', () => { if (drive()) setMode(false); openList(); });
+  $('#menuMode').addEventListener('click', () => setMode(!drive()));
+  $('#searchBtn').addEventListener('click', () => (document.body.classList.contains('searching') ? closeSearch() : openSearch()));
+  $('#qclose').addEventListener('click', closeSearch);
+  $('#drivelist').addEventListener('click', e => {
+    const li = e.target.closest('li[data-id]');
+    if (li) pickDrive(zones.find(z => z.id === li.dataset.id));
+  });
   $('#menuFit').addEventListener('click', () => { toggleMenu(false); state.here = null; fitAll(); });
   $('#menuPrefs').addEventListener('click', e => {
     const b = e.target.closest('[data-pref]');
@@ -427,26 +555,28 @@ function bind() {
     const li = e.target.closest('li[data-id]');
     if (li) openDetail(zones.find(z => z.id === li.dataset.id));
   });
+  // 現在地ボタン：検索した場所をやめて、また現在地を追う（現在地の印はオレンジ。線より上の層に置く）
   $('#locate').addEventListener('click', () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(p => {
-      state.here = [p.coords.latitude, p.coords.longitude];
-      if (hereMark) map.removeLayer(hereMark);
-      // 現在地はオレンジ（区間の線の緑・青と見分けるため）。線より上の層に置く
-      hereMark = L.circleMarker(state.here, { pane: 'marks', radius: 9, color: '#fff', weight: 3, fillColor: '#F28C28', fillOpacity: 1 }).addTo(map);
-      map.setView(state.here, 17);
-      if (listOpen()) renderList();
-    }, () => alert('現在地を取得できませんでした'), { enableHighAccuracy: true, timeout: 10000 });
+    if (!navigator.geolocation) return alert('この端末では現在地を使えません');
+    state.follow = true;
+    state.place = null;
+    if (placeMark) { map.removeLayer(placeMark); placeMark = null; }
+    $('#locate').classList.remove('off');
+    $('#qnote').hidden = true;
+    if (state.here) centerOn(state.here, Math.max(map.getZoom(), 16));
+    startWatch();
+    if (drive()) renderDrive();
   });
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    if (!$('#menu').hidden) toggleMenu(false);
+    if (document.body.classList.contains('searching')) closeSearch();
+    else if (!$('#menu').hidden) toggleMenu(false);
     else if (!$('#filters').hidden) toggleFilters(false);
     else if ($('#detail').classList.contains('open')) closeDetail();
     else closeList();
   });
   // 「いま使える」は時間が進むと変わるので、1分ごとに見直す
-  setInterval(() => { holidayNote(); if (state.at === 'now') applyFilters(); }, 60000);
+  setInterval(() => { holidayNote(); if (state.at === 'now' || drive()) applyFilters(); }, 60000);
 }
 
 async function boot() {
@@ -465,8 +595,15 @@ async function boot() {
   holidayNote();
   fillPrefs();
   fillHours();
-  applyFilters();
-  fitAll('東京都'); // 最初は区間の多い東京を見せる。大阪はメニューの「大阪を表示」から
+  // 前回「詳しく探す」で閉じた人はそのまま。初めての人は運転モードから
+  let mode = 'drive';
+  try { mode = localStorage.getItem('pmm-mode') || 'drive'; } catch (e) {}
+  if (mode !== 'drive') setMode(false);
+  else { map.removeControl(map.zoomCtl); applyFilters(); }
+  // 現在地が取れればそこへ。取れないうちは東京を見せる
+  startWatch();
+  // 動きをつけると、あとから届いた現在地への移動をズームの終わりで上書きしてしまうので、一度に切り替える
+  if (!state.here) fitAll('東京都', false);
 }
 
 boot();

@@ -12,17 +12,21 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="vendor/leaflet.css?v=ec929f11">
-<link rel="stylesheet" href="styles.css?v=42becd39">
+<link rel="stylesheet" href="styles.css?v=0b9f316b">
 </head>
-<body>
+<body class="drive">
 
 <header class="mast">
   <h1><span class="sub">ON-STREET PARKING · JAPAN</span>パーキング・メーター・マップ</h1>
+  <button class="roundbtn" id="searchBtn" aria-label="地名・駅名で探す（停車中に）">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+  </button>
   <span class="spacer"></span>
   <button class="menubtn" id="menuBtn" aria-label="メニュー" aria-expanded="false" aria-controls="menu">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <nav class="menu" id="menu" hidden>
+    <button id="menuMode"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"/></svg><span id="menuModeText">詳しく探す</span></button>
     <button id="menuList"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>一覧で見る</button>
     <div id="menuPrefs"></div>
     <button id="menuFit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>全体を表示</button>
@@ -37,6 +41,7 @@
     <form class="search" id="qform" role="search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
       <input id="q" type="search" enterkeyhint="search" placeholder="地名・駅名へ移動（例：銀座）" aria-label="地名で移動">
+      <button type="button" class="qclose" id="qclose" aria-label="検索を閉じる">×</button>
     </form>
     <div class="qnote" id="qnote" hidden></div>
     <div class="barrow">
@@ -86,6 +91,12 @@
     </div>
   </div>
 
+  <section class="drivecard" id="drivecard" aria-label="近くのいま使える区間">
+    <p class="drivenote" id="drivenote"></p>
+    <ol class="drivelist" id="drivelist"></ol>
+    <a class="gobtn" id="drivego" target="_blank" rel="noopener" hidden></a>
+  </section>
+
   <div class="mapbtns">
     <button class="mapbtn" id="locate" title="現在地"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
   </div>
@@ -122,6 +133,6 @@
 <script src="config.js?v=64f92221"></script>
 <script src="vendor/leaflet.js?v=5a640ff8"></script>
 <script src="zones.js?v=0a80f9b4"></script>
-<script src="app.js?v=afffa394"></script>
+<script src="app.js?v=bedfd713"></script>
 </body>
 </html>

@@ -166,3 +166,43 @@ svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-lin
   .legend{bottom:48px}
   .detail h2{margin:4px 0 8px}
 }
+
+/* ---------- 運転モード（初期画面） ---------- */
+.roundbtn{display:none}
+.qclose{display:none}
+.drivecard{display:none}
+.mapbtn.off{color:var(--muted)}
+body.drive .mast{position:absolute;top:0;left:0;right:0;height:auto;padding:calc(10px + env(safe-area-inset-top)) 12px 0;background:transparent;border:0;pointer-events:none}
+body.drive .mast h1{display:none}
+body.drive .mast > button{pointer-events:auto}
+body.drive .roundbtn,body.drive .menubtn{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow);cursor:pointer;color:var(--ink)}
+body.drive .roundbtn svg,body.drive .menubtn svg{width:26px;height:26px}
+body.drive .menu{top:74px;right:12px;pointer-events:auto}
+body.drive .mapwrap{height:100%}
+body.drive .legend,body.drive .barrow,body.drive .filters{display:none}
+/* 検索欄は虫めがねを押したときだけ（停車中に使う） */
+body.drive .topbar{display:none;top:calc(76px + env(safe-area-inset-top))}
+body.drive.searching .topbar{display:grid}
+body.drive .qclose{display:block;border:0;background:transparent;font-size:24px;color:var(--muted);cursor:pointer;padding:0 4px}
+body.drive .search input{font-size:18px;padding:14px 0}
+body.drive .mapbtns{bottom:auto;top:calc(80px + env(safe-area-inset-top));right:12px}
+body.drive.searching .mapbtns{display:none}
+body.drive .mapbtn{width:56px;height:56px;border-radius:16px}
+body.drive .mapbtn svg{width:26px;height:26px}
+body.drive .leaflet-control-attribution{font-size:9px;opacity:.7}
+
+body.drive .drivecard{display:block;position:absolute;left:10px;right:10px;bottom:calc(22px + env(safe-area-inset-bottom));z-index:1000;
+  max-width:520px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:10px 12px 12px}
+.drivenote{margin:2px 6px 6px;font-size:14px;color:var(--muted)}
+.drivenote:empty{display:none}
+.drivelist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.drivelist li{display:flex;align-items:center;gap:14px;padding:10px 10px;border-radius:14px;cursor:pointer;border:2px solid transparent}
+.drivelist li.on{border-color:var(--daily);background:color-mix(in srgb,var(--daily) 10%,transparent)}
+.drivelist li.unk.on{border-color:var(--unknown);background:color-mix(in srgb,var(--unknown) 12%,transparent)}
+.drivelist .arrow{width:34px;height:34px;flex:none;fill:var(--daily);stroke:none}
+.drivelist li.unk .arrow{fill:var(--unknown)}
+.drivelist .info{display:flex;flex-direction:column;min-width:0}
+.drivelist .info b{font-size:22px;line-height:1.25;font-weight:700}
+.drivelist .info span{font-size:16px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gobtn{display:block;margin-top:8px;text-align:center;text-decoration:none;background:var(--accent);color:var(--surface);font-weight:700;font-size:20px;padding:16px;border-radius:14px}
+.gobtn[hidden]{display:none}
