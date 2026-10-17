@@ -97,6 +97,6 @@ Android Studio で、右上のエミュレーター（Pixel など）を選ん�
 2. ~~有料プランをストアの購入に~~（済み：StoreKit 2・@capgo/native-purchases。Stripe・Cloudflare の仕組みとメールでの復元はやめた。docs/pro-ads.md §15.6）。残り：App Store Connect に商品を登録して、Sandbox の Apple ID で実機で試す（docs/pro-ads.md §23）
 3. ~~タイマーの通知を、アプリの通知に~~（済み）
 4. ~~「ここへ行く」で地図アプリを確実に開く~~（済み：@capacitor/app-launcher。シミュレーターには Google マップのアプリがないので、Google は Safari で開く）
-5. アイコン・起動画面（@capacitor/assets）
+5. ~~アイコン・起動画面~~（済み：iPhone。「時間制限駐車区間」の標識にならい、青の地に白い縁・「8-20」・P・「60分」。起動画面は地いっぱいの青に白いマークだけ。作り直すときは `node build/app-icons/render.js`。Android は Android 版を作るときに）
 6. Web 版をやめる：GitHub の **Settings → Pages** で公開を止める
 7. App Store・Google Play への申請（ストアの説明文・スクリーンショット・プライバシーの申告）
